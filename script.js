@@ -78,7 +78,7 @@ async function testConnection() {
         console.log('API Config:', state.apiConfig);
         
         elements.connectionStatus.className = 'status-message success';
-        elements.connectionStatus.textContent = `✓ Connected! Max files: ${state.apiConfig.maxFiles}, Max size: ${state.apiConfig.maxFileSizeMB}MB per file`;
+        elements.connectionStatus.textContent = `✓ Connected! Max files: ${state.apiConfig.maxFiles}, Max size: ${state.apiConfig.maxFileSizeMB}MB per file, Total upload: 100MB limit`;
         elements.connectionStatus.style.display = 'block';
         
     } catch (error) {
