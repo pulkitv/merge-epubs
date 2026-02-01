@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB Combiner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 EPUB Combiner</h1>
+            <p class="subtitle">Combine multiple EPUB files into one</p>
+        </header>
+
+        <main>
+            <!-- API Configuration Section -->
+            <div id="apiConfig" class="card">
+                <h2>⚙️ API Configuration</h2>
+                <div class="config-form">
+                    <label for="apiUrl">API URL:</label>
+                    <input 
+                        type="text" 
+                        id="apiUrl" 
+                        value="https://combine-epubs.vercel.app" 
+                        placeholder="https://combine-epubs.vercel.app"
+                    >
+                    <button id="testConnection" class="btn-secondary">Test Connection</button>
+                </div>
+                <div id="connectionStatus" class="status-message"></div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>📤 Upload EPUB Files</h2>
+                <p class="info-text">Select 2 to 10 EPUB files (max 50MB each)</p>
+                
+                <div class="upload-area" id="uploadArea">
+                    <input 
+                        type="file" 
+                        id="epubFiles" 
+                        multiple 
+                        accept=".epub"
+                        hidden
+                    >
+                    <label for="epubFiles" class="upload-label">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Click to select EPUB files or drag & drop here</span>
+                    </label>
+                </div>
+
+                <!-- File List -->
+                <div id="fileList" class="file-list"></div>
+
+                <!-- Combine Button -->
+                <button id="combineBtn" class="btn-primary" disabled>
+                    Combine EPUBs
+                </button>
+            </div>
+
+            <!-- Progress Section -->
+            <div id="progressSection" class="card" style="display: none;">
+                <h2>⏳ Processing</h2>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText" class="progress-text">Uploading files...</p>
+            </div>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="card" style="display: none;">
+                <h2>✅ Success</h2>
+                <p class="success-message">Your EPUBs have been combined successfully!</p>
+                <button id="downloadBtn" class="btn-success">
+                    Download Combined EPUB
+                </button>
+                <button id="resetBtn" class="btn-secondary">
+                    Combine More Files
+                </button>
+            </div>
+
+            <!-- Error Section -->
+            <div id="errorSection" class="card error-card" style="display: none;">
+                <h2>❌ Error</h2>
+                <p id="errorMessage" class="error-message"></p>
+                <button id="retryBtn" class="btn-secondary">
+                    Try Again
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <p>Made with ❤️ for book lovers</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
