@@ -1,7 +1,7 @@
 // State management
 const state = {
     files: [],
-    apiUrl: 'https://combine-epubs.vercel.app',
+    apiUrl: '',
     apiConfig: null,
     combinedBlob: null
 };
@@ -28,6 +28,9 @@ const elements = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    const defaultApiBase = `${window.location.origin}/api`;
+    state.apiUrl = defaultApiBase;
+    elements.apiUrlInput.value = defaultApiBase;
     setupEventListeners();
     testConnection(); // Auto-test connection on load
 });
