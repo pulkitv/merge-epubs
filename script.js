@@ -68,6 +68,7 @@ async function testConnection() {
     elements.connectionStatus.style.display = 'none';
 
     try {
+        console.log(`Testing connection to: ${state.apiUrl}/config`);
         const response = await fetch(`${state.apiUrl}/config`);
         
         if (!response.ok) {
@@ -75,14 +76,16 @@ async function testConnection() {
         }
 
         state.apiConfig = await response.json();
+        console.log('API Config:', state.apiConfig);
         
         elements.connectionStatus.className = 'status-message success';
         elements.connectionStatus.textContent = `✓ Connected! Max files: ${state.apiConfig.maxFiles}, Max size: ${state.apiConfig.maxFileSizeMB}MB per file`;
         elements.connectionStatus.style.display = 'block';
         
     } catch (error) {
+        console.error('Connection test error:', error);
         elements.connectionStatus.className = 'status-message error';
-        elements.connectionStatus.textContent = `✗ Connection failed: ${error.message}. Please check the API URL and ensure the server is running.`;
+        elements.connectionStatus.textContent = `✗ Connection failed: ${error.message}. Check API URL.`;
         elements.connectionStatus.style.display = 'block';
         state.apiConfig = null;
     } finally {
@@ -244,11 +247,17 @@ async function combineEpubs() {
         elements.progressFill.style.width = '60%';
         elements.progressText.textContent = 'Combining EPUBs...';
 
+        console.log(`Sending request to: ${state.apiUrl}/combine-epubs`);
+        console.log(`Total files: ${state.files.length}`);
+
         // Make API request
         const response = await fetch(`${state.apiUrl}/combine-epubs`, {
             method: 'POST',
             body: formData
         });
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers));
 
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}`;
@@ -267,6 +276,7 @@ async function combineEpubs() {
 
         // Get the blob
         state.combinedBlob = await response.blob();
+        console.log('Combined EPUB size:', state.combinedBlob.size, 'bytes');
 
         // Complete
         elements.progressFill.style.width = '100%';

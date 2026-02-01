@@ -1,32 +1,27 @@
 const API_BASE_URL = process.env.API_BASE_URL || 'https://epub-combiner-api.onrender.com';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.statusCode = 200;
-    return res.end();
+    return res.status(200).end();
   }
 
   if (req.method !== 'GET') {
-    res.statusCode = 405;
-    return res.end('Method Not Allowed');
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const upstream = await fetch(`${API_BASE_URL}/config`);
-    const data = await upstream.arrayBuffer();
+    const response = await fetch(`${API_BASE_URL}/config`);
+    const data = await response.json();
 
-    res.statusCode = upstream.status;
-    upstream.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
-
-    return res.end(Buffer.from(data));
+    res.status(response.status);
+    res.setHeader('Content-Type', 'application/json');
+    return res.json(data);
   } catch (error) {
-    res.statusCode = 502;
-    return res.end(`Upstream error: ${error.message}`);
+    console.error('Proxy error:', error);
+    res.status(502).json({ error: error.message });
   }
-};
+}

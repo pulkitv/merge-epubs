@@ -1,50 +1,37 @@
 const API_BASE_URL = process.env.API_BASE_URL || 'https://epub-combiner-api.onrender.com';
 
-async function readRequestBody(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
-}
-
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.statusCode = 200;
-    return res.end();
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    res.statusCode = 405;
-    return res.end('Method Not Allowed');
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const body = await readRequestBody(req);
-    const headers = { ...req.headers };
-
-    delete headers.host;
-
-    const upstream = await fetch(`${API_BASE_URL}/combine-epubs`, {
+    // Forward the request directly to upstream API
+    const response = await fetch(`${API_BASE_URL}/combine-epubs`, {
       method: 'POST',
-      headers,
-      body
+      headers: {
+        'Content-Type': req.headers['content-type'] || 'multipart/form-data'
+      },
+      body: req
     });
 
-    const data = await upstream.arrayBuffer();
+    // Set response headers
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/epub+zip');
+    res.setHeader('Content-Disposition', response.headers.get('content-disposition') || 'attachment; filename="combined.epub"');
 
-    res.statusCode = upstream.status;
-    upstream.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
-
-    return res.end(Buffer.from(data));
+    // Stream the response
+    res.status(response.status);
+    return res.send(await response.buffer());
   } catch (error) {
-    res.statusCode = 502;
-    return res.end(`Upstream error: ${error.message}`);
+    console.error('Proxy error:', error);
+    res.status(502).json({ error: error.message });
   }
-};
+}
