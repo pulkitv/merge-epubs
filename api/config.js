@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.API_BASE_URL || 'https://combine-epubs.vercel.app';
+const API_BASE_URL = process.env.API_BASE_URL || 'https://epub-combiner-api.onrender.com';
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

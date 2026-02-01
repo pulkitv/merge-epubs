@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.API_BASE_URL || 'https://combine-epubs.vercel.app';
+const API_BASE_URL = process.env.API_BASE_URL || 'https://epub-combiner-api.onrender.com';
 
 async function readRequestBody(req) {
   const chunks = [];
