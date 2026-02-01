@@ -1,7 +1,7 @@
 // State management
 const state = {
     files: [],
-    apiUrl: '',
+    apiUrl: 'https://epub-combiner-api.onrender.com',
     apiConfig: null,
     combinedBlob: null
 };
@@ -28,9 +28,8 @@ const elements = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    const defaultApiBase = `${window.location.origin}/api`;
-    state.apiUrl = defaultApiBase;
-    elements.apiUrlInput.value = defaultApiBase;
+    state.apiUrl = 'https://epub-combiner-api.onrender.com';
+    elements.apiUrlInput.value = state.apiUrl;
     setupEventListeners();
     testConnection(); // Auto-test connection on load
 });
