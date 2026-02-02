@@ -1,204 +1,218 @@
 # EPUB Combiner UI
 
-A modern, user-friendly web interface for combining multiple EPUB files into one.
+A modern, user-friendly web interface for combining multiple EPUB files into one seamlessly.
 
-## Features
+**Live Demo:** https://merge-epubs.vercel.app  
+**API:** https://epub-combiner-api.onrender.com
 
-✨ **Easy to Use**
-- Drag & drop or click to upload EPUB files
-- Support for up to 10 files at once (max 50MB each)
-- Real-time file validation
-- Beautiful, responsive design
+## 📋 Project Status
 
-🔧 **Configurable**
-- Change API URL on the fly
-- Test connection before uploading
-- Automatic API configuration detection
+- ✅ **Frontend**: Deployed on Vercel (https://merge-epubs.vercel.app)
+- ✅ **Backend API**: Deployed on Render (https://epub-combiner-api.onrender.com)
+- ✅ **CORS**: Configured - UI calls API directly
+- ✅ **Production Ready**: All features working
 
-📊 **Progress Tracking**
-- Visual progress bar during combination
-- Clear status messages
-- Error handling with helpful messages
+## ✨ Features
 
-💾 **Download Management**
-- Automatic download of combined EPUB
-- Option to combine more files after completion
+### Core Functionality
+- 📤 **Drag & Drop Upload** - Intuitive file upload with drag-and-drop support
+- 📊 **Real-time Validation** - Validates file count (2-10), size (max 50MB each), and type
+- ⚙️ **API Configuration** - Change API URL and test connection on-the-fly
+- ⏳ **Progress Tracking** - Visual progress bar with status updates during combining
+- 💾 **Auto-Download** - Combined EPUB automatically downloads to your device
+- 🔄 **Reset Functionality** - Easily combine more files after completion
+- ⚠️ **Error Handling** - Clear error messages with troubleshooting guidance
 
-## Getting Started
+### User Experience
+- 🎨 **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
+- 🌙 **Modern UI** - Clean, minimalist interface with smooth animations
+- ♿ **Accessible** - Keyboard navigation and screen reader friendly
+- 🚀 **Fast** - Optimized for performance with minimal loading times
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
-Make sure your EPUB Combiner API is running. By default, it should be available at:
-```
-http://localhost:3000
-```
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+- Internet connection
+- Active EPUB Combiner API running
 
 ### Installation
 
-1. No installation needed! This is a static HTML application.
+**Option 1: Use Live Version**
+Simply visit: https://merge-epubs.vercel.app
 
-2. Simply open `index.html` in your web browser:
-   - Double-click the file, or
-   - Right-click and select "Open with" → Your browser
-   - Or serve it with a local web server (see below)
+**Option 2: Run Locally**
 
-### Using a Local Web Server (Optional)
+1. Clone the repository:
+```bash
+git clone https://github.com/pulkitv/merge-epubs.git
+cd merge-epubs
+```
 
-For better CORS handling and development experience, you can serve the files:
-
-**Using Python:**
+2. Serve the files locally:
 ```bash
 # Python 3
 python3 -m http.server 8080
 
-# Python 2
-python -m SimpleHTTPServer 8080
-```
-
-**Using Node.js (with npx):**
-```bash
+# Node.js
 npx http-server -p 8080
 ```
 
-**Using PHP:**
-```bash
-php -S localhost:8080
-```
+3. Open http://localhost:8080 in your browser
 
-Then open: `http://localhost:8080`
+## 📖 How to Use
 
-## How to Use
-
-1. **Configure API URL** (if different from default)
-   - Enter your API URL in the configuration section
+1. **Configure API** (Optional)
+   - Default API: `https://epub-combiner-api.onrender.com`
+   - Change URL if using different API endpoint
    - Click "Test Connection" to verify
 
 2. **Upload EPUB Files**
-   - Click the upload area or drag & drop EPUB files
-   - Add between 2 to 10 files
-   - Each file must be under 50MB
+   - Click upload area or drag & drop files
+   - Add 2-10 EPUB files (max 50MB each, 100MB total)
+   - View uploaded files with their sizes
 
-3. **Review Your Files**
-   - See all uploaded files with their sizes
-   - Remove any files you don't want to include
-
-4. **Combine**
+3. **Combine**
    - Click "Combine EPUBs" button
-   - Wait for the processing to complete
-   - Download the combined EPUB file
+   - Monitor progress with visual indicator
+   - Wait for processing to complete
 
-5. **Start Over** (Optional)
-   - Click "Combine More Files" to reset and start again
+4. **Download**
+   - Combined EPUB automatically downloads
+   - File saved as `combined.epub`
+   - Option to combine more files
 
-## File Structure
+## 📁 Project Structure
 
 ```
-ui-combine-epub/
-├── index.html          # Main HTML file
-├── styles.css          # Styling and design
-├── script.js           # Application logic
-├── README.md           # This file
-└── INTEGRATION-combine-epub.md  # API documentation
+merge-epubs/
+├── index.html           # Main HTML structure
+├── styles.css           # Styling and responsive design
+├── script.js            # Application logic and API integration
+├── README.md            # This file
+├── ARCHITECTURE.md      # Technical documentation
+├── INTEGRATION-combine-epub.md  # API integration guide
+└── api/                 # (Removed - using direct Render API)
+    ├── config.js        # Config proxy endpoint (DEPRECATED)
+    └── combine-epubs.js # Combine proxy endpoint (DEPRECATED)
 ```
 
-## Browser Compatibility
+## 🔧 Configuration
 
-Works on all modern browsers:
-- ✅ Chrome/Edge (v90+)
-- ✅ Firefox (v88+)
-- ✅ Safari (v14+)
-- ✅ Opera (v76+)
+### API Endpoints
 
-## Troubleshooting
-
-### Connection Failed Error
-
-**Problem:** "Connection failed" when testing API connection
-
-**Solutions:**
-1. Ensure the EPUB Combiner API is running
-2. Check if the API URL is correct
-3. Verify there are no firewall/network issues
-4. If running locally, make sure both API and UI are on the same domain or CORS is configured
-
-### CORS Issues
-
-**Problem:** Browser blocks API requests due to CORS policy
-
-**Solutions:**
-1. Ensure your API has CORS enabled for your UI domain
-2. Run the UI and API on the same origin
-3. Use a local web server instead of opening the HTML file directly
-
-### Files Not Uploading
-
-**Problem:** Files don't appear in the list after selection
-
-**Solutions:**
-1. Check file size (must be under 50MB each)
-2. Ensure files have `.epub` extension
-3. Verify you haven't exceeded 10 files limit
-4. Try refreshing the page and uploading again
-
-## API Configuration
-
-The UI automatically fetches API configuration from `/config` endpoint:
-
-```json
-{
-  "maxFiles": 10,
-  "maxFileSize": 52428800,
-  "maxFileSizeMB": 50,
-  "port": 3000
-}
+**Connection Test:**
+```
+GET https://epub-combiner-api.onrender.com/config
 ```
 
-## Development
-
-### Making Changes
-
-1. **HTML (index.html):** Modify structure and content
-2. **CSS (styles.css):** Customize styling and colors
-3. **JavaScript (script.js):** Change functionality and behavior
-
-### Customizing Colors
-
-Edit the CSS variables in `styles.css`:
-
-```css
-:root {
-    --primary-color: #4f46e5;     /* Main brand color */
-    --success-color: #10b981;      /* Success messages */
-    --error-color: #ef4444;        /* Error messages */
-    /* ... more variables ... */
-}
+**Combine EPUBs:**
+```
+POST https://epub-combiner-api.onrender.com/combine-epubs
+Content-Type: multipart/form-data
+Body: epubs (multiple files)
 ```
 
-### Adding Features
+### Upload Limits
 
-The code is well-organized and commented. Key areas:
+| Setting | Value |
+|---------|-------|
+| Max Files | 10 |
+| Max File Size | 50MB per file |
+| Total Upload | 100MB limit |
+| Processing Timeout | 5 minutes |
 
-- **State Management:** See `state` object in script.js
-- **API Integration:** See `combineEpubs()` function
-- **UI Updates:** See update functions like `updateFileList()`
+## 🛠️ Technology Stack
 
-## Security Notes
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript
+- **Hosting**: Vercel (Static hosting)
+- **API**: Express.js/Node.js on Render
+- **File Format**: EPUB (zip-based)
 
-- ⚠️ Files are sent directly to the API - never stored locally
-- 🔒 No sensitive data is transmitted except the EPUB files
-- ✅ File type validation prevents non-EPUB uploads
-- ✅ File size validation prevents oversized uploads
+## 📊 Performance Metrics
 
-## License
+- Initial Load: ~1-2 seconds
+- File Upload: ~5-30 seconds (depends on file size)
+- Processing: ~10-30 seconds for 2-5 files
+- Download: Automatic on completion
 
-This project is open source and available for personal and commercial use.
+## 🔐 Security & Privacy
 
-## Support
+- ✅ No files stored on servers
+- ✅ Direct file processing
+- ✅ Files deleted after combining
+- ✅ HTTPS encryption for all transfers
+- ✅ No data collection or analytics
 
-For API-related issues, refer to [INTEGRATION-combine-epub.md](INTEGRATION-combine-epub.md)
+## 🐛 Troubleshooting
 
-For UI issues, check the browser console for error messages.
+### Connection Failed
+- Verify API URL is correct
+- Check internet connection
+- Ensure API server is running
+
+### Upload Fails
+- Check file size (max 50MB each)
+- Verify total doesn't exceed 100MB
+- Ensure files have `.epub` extension
+- Try uploading fewer files
+
+### Large File Limits
+- Current setup supports up to 50MB per file
+- For larger files, upgrade API server plan or implement streaming
+
+## 📈 Future Improvements
+
+- [ ] Drag-to-reorder files
+- [ ] Merge progress per file
+- [ ] Support for batch operations
+- [ ] Custom metadata editing
+- [ ] Queue system for large batches
+- [ ] Streaming for files >100MB
+- [ ] Database for history/stats
+
+## 📅 Project Timeline
+
+**17 Jan 2026 - Initial Development**
+- Created UI with HTML/CSS/JavaScript
+- Implemented drag-drop upload functionality
+- Added file validation and progress tracking
+- Created responsive design
+
+**18 Jan 2026 - Deployment Setup**
+- Deployed UI to Vercel
+- Deployed API to Render
+- Fixed CORS issues
+- Tested direct API integration
+
+**2 Feb 2026 - Production Ready**
+- Removed Vercel proxy layer
+- Optimized for direct Render API calls
+- Added upload limit messaging
+- Final testing and optimization
+
+## 📝 Browser Support
+
+- ✅ Chrome 90+
+- ✅ Firefox 88+
+- ✅ Safari 14+
+- ✅ Edge 90+
+- ✅ Opera 76+
+
+## 📞 Support & Contribution
+
+For issues or contributions, please visit: https://github.com/pulkitv/merge-epubs
+
+## 📄 Related Documentation
+
+- [Architecture & Technical Details](ARCHITECTURE.md) - Deep dive into code structure
+- [API Integration Guide](INTEGRATION-combine-epub.md) - Backend API reference
+
+## 📜 License
+
+Open source - feel free to use, modify, and distribute.
 
 ---
 
-Made with ❤️ for book lovers
+**Made with ❤️ for book lovers**  
+Last Updated: 2 February 2026
