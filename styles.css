@@ -177,6 +177,8 @@ h2 {
     line-height: 1.75;
     color: var(--reader-text);
     background: var(--reader-bg);
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 .reader-content h1,
@@ -509,6 +511,7 @@ footer {
     .reader-content {
         padding: 1.25rem;
         max-height: 60vh;
+        max-width: 100%;
     }
 }
 
