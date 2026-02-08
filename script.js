@@ -223,10 +223,34 @@ function sanitizeArticleHtml(html, sourceUrl) {
                     // Ignore invalid URLs
                 }
             }
-            if (name === 'srcset') {
-                node.removeAttribute(attr.name);
-            }
         });
+
+        if (sourceUrl && node.hasAttribute('srcset')) {
+            const rawSrcset = node.getAttribute('srcset') || '';
+            const resolvedSrcset = rawSrcset
+                .split(',')
+                .map((entry) => entry.trim())
+                .filter(Boolean)
+                .map((entry) => {
+                    const [urlPart, descriptor] = entry.split(/\s+/, 2);
+                    if (!urlPart) return '';
+                    try {
+                        const isAbsolute = /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(urlPart) || urlPart.startsWith('//');
+                        const resolvedUrl = isAbsolute ? urlPart : new URL(urlPart, sourceUrl).toString();
+                        return descriptor ? `${resolvedUrl} ${descriptor}` : resolvedUrl;
+                    } catch (error) {
+                        return entry;
+                    }
+                })
+                .filter(Boolean)
+                .join(', ');
+
+            if (resolvedSrcset) {
+                node.setAttribute('srcset', resolvedSrcset);
+            } else {
+                node.removeAttribute('srcset');
+            }
+        }
     });
 
     return doc.body.innerHTML;
