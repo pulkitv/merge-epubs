@@ -6,11 +6,28 @@ const state = {
     combinedBlob: null
 };
 
+const readerConfig = {
+    allowedOrigins: [
+        'chrome-extension://floidkamdcekmpimibhckjfegjpgeeda',
+        'chrome-extension://ffjopfamcpefiadpmnaoonhidikfdkif'
+    ],
+    defaultTheme: 'dark',
+    defaultFontSize: 18
+};
+
+const readerState = {
+    theme: readerConfig.defaultTheme,
+    fontSize: readerConfig.defaultFontSize
+};
+
 // DOM elements
 const elements = {
     apiUrlInput: document.getElementById('apiUrl'),
     testConnectionBtn: document.getElementById('testConnection'),
     connectionStatus: document.getElementById('connectionStatus'),
+    navLinks: document.querySelectorAll('.nav-link'),
+    mergeView: document.getElementById('mergeView'),
+    readerView: document.getElementById('readerView'),
     uploadArea: document.getElementById('uploadArea'),
     fileInput: document.getElementById('epubFiles'),
     fileList: document.getElementById('fileList'),
@@ -23,14 +40,25 @@ const elements = {
     resetBtn: document.getElementById('resetBtn'),
     errorSection: document.getElementById('errorSection'),
     errorMessage: document.getElementById('errorMessage'),
-    retryBtn: document.getElementById('retryBtn')
+    retryBtn: document.getElementById('retryBtn'),
+    readerTitle: document.getElementById('readerTitle'),
+    readerByline: document.getElementById('readerByline'),
+    readerSource: document.getElementById('readerSource'),
+    readerStatus: document.getElementById('readerStatus'),
+    articleRoot: document.getElementById('articleRoot'),
+    themeToggle: document.getElementById('themeToggle'),
+    fontButtons: document.querySelectorAll('.font-btn')
 };
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     state.apiUrl = 'https://epub-combiner-api.onrender.com';
     elements.apiUrlInput.value = state.apiUrl;
+    setReaderTheme(readerState.theme);
+    setReaderFontSize(readerState.fontSize);
     setupEventListeners();
+    setupRouting();
+    setupReaderMessaging();
     testConnection(); // Auto-test connection on load
 });
 
@@ -57,6 +85,169 @@ function setupEventListeners() {
     elements.downloadBtn.addEventListener('click', downloadCombinedEpub);
     elements.resetBtn.addEventListener('click', resetUI);
     elements.retryBtn.addEventListener('click', resetUI);
+
+    // Reader tools
+    if (elements.themeToggle) {
+        elements.themeToggle.addEventListener('click', toggleReaderTheme);
+    }
+    elements.fontButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const size = Number(button.dataset.font);
+            if (!Number.isNaN(size)) {
+                setReaderFontSize(size);
+            }
+        });
+    });
+}
+
+function setupRouting() {
+    window.addEventListener('hashchange', handleRouteChange);
+    handleRouteChange();
+}
+
+function handleRouteChange() {
+    const view = getViewFromHash();
+    setActiveView(view);
+}
+
+function getViewFromHash() {
+    const hash = window.location.hash || '#/merge';
+    if (hash.includes('reader')) {
+        return 'reader';
+    }
+    return 'merge';
+}
+
+function setActiveView(view) {
+    if (!elements.mergeView || !elements.readerView) return;
+
+    const isReader = view === 'reader';
+    elements.mergeView.style.display = isReader ? 'none' : 'block';
+    elements.readerView.style.display = isReader ? 'block' : 'none';
+
+    elements.navLinks.forEach((link) => {
+        link.classList.toggle('active', link.dataset.view === view);
+    });
+
+    if (isReader) {
+        setReaderStatus('Waiting for content from extension...', 'success');
+        notifyExtensionReady();
+    }
+}
+
+function toggleReaderTheme() {
+    const nextTheme = readerState.theme === 'dark' ? 'light' : 'dark';
+    setReaderTheme(nextTheme);
+}
+
+function setReaderTheme(theme) {
+    readerState.theme = theme;
+    document.body.setAttribute('data-theme', theme);
+    if (elements.themeToggle) {
+        elements.themeToggle.textContent = theme === 'dark' ? 'Dark' : 'Light';
+    }
+}
+
+function setReaderFontSize(size) {
+    readerState.fontSize = size;
+    document.documentElement.style.setProperty('--reader-font-size', `${size}px`);
+    elements.fontButtons.forEach((button) => {
+        button.classList.toggle('active', Number(button.dataset.font) === size);
+    });
+}
+
+function setupReaderMessaging() {
+    window.addEventListener('message', handleReaderMessage);
+}
+
+function handleReaderMessage(event) {
+    if (!readerConfig.allowedOrigins.includes(event.origin)) {
+        return;
+    }
+
+    const payload = event.data;
+    if (!payload || payload.type !== 'readeasy-article') {
+        return;
+    }
+
+    renderReaderContent(payload);
+}
+
+function renderReaderContent(payload) {
+    const title = payload.title || 'Untitled Article';
+    const byline = payload.byline || payload.siteName || '';
+    const sourceUrl = payload.sourceUrl || '#';
+
+    if (elements.readerTitle) elements.readerTitle.textContent = title;
+    if (elements.readerByline) elements.readerByline.textContent = byline;
+    if (elements.readerSource) {
+        elements.readerSource.href = sourceUrl;
+        elements.readerSource.textContent = payload.siteName ? `Source: ${payload.siteName}` : 'Open source';
+    }
+
+    const sanitizedHtml = sanitizeArticleHtml(payload.html || '', sourceUrl);
+    if (elements.articleRoot) {
+        elements.articleRoot.innerHTML = sanitizedHtml;
+    }
+
+    setReaderStatus('Content loaded successfully.', 'success');
+}
+
+function sanitizeArticleHtml(html, sourceUrl) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const blockedTags = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'link', 'meta'];
+    blockedTags.forEach((tag) => {
+        doc.querySelectorAll(tag).forEach((node) => node.remove());
+    });
+
+    doc.querySelectorAll('*').forEach((node) => {
+        [...node.attributes].forEach((attr) => {
+            const name = attr.name.toLowerCase();
+            const value = attr.value || '';
+            if (name.startsWith('on') || name === 'style') {
+                node.removeAttribute(attr.name);
+            }
+            if ((name === 'href' || name === 'src') && value.trim().toLowerCase().startsWith('javascript:')) {
+                node.removeAttribute(attr.name);
+            }
+            if ((name === 'href' || name === 'src') && sourceUrl) {
+                try {
+                    const isAbsolute = /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value) || value.startsWith('//');
+                    if (!isAbsolute && value.trim() !== '') {
+                        const resolved = new URL(value, sourceUrl);
+                        node.setAttribute(attr.name, resolved.toString());
+                    }
+                } catch (error) {
+                    // Ignore invalid URLs
+                }
+            }
+            if (name === 'srcset') {
+                node.removeAttribute(attr.name);
+            }
+        });
+    });
+
+    return doc.body.innerHTML;
+}
+
+function setReaderStatus(message, type = 'success') {
+    if (!elements.readerStatus) return;
+    elements.readerStatus.className = `status-message ${type}`;
+    elements.readerStatus.textContent = message;
+    elements.readerStatus.style.display = 'block';
+}
+
+function notifyExtensionReady() {
+    if (!window.opener) return;
+    readerConfig.allowedOrigins.forEach((origin) => {
+        try {
+            window.opener.postMessage('readeasy-ready', origin);
+        } catch (error) {
+            console.warn('Unable to notify extension origin:', origin, error);
+        }
+    });
 }
 
 // Test API connection

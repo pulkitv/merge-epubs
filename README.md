@@ -22,6 +22,7 @@ A modern, user-friendly web interface for combining multiple EPUB files into one
 - 💾 **Auto-Download** - Combined EPUB automatically downloads to your device
 - 🔄 **Reset Functionality** - Easily combine more files after completion
 - ⚠️ **Error Handling** - Clear error messages with troubleshooting guidance
+- 📰 **Reader View** - Render HTML from Chrome extension postMessage in a clean reading mode
 
 ### User Experience
 - 🎨 **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
@@ -82,6 +83,11 @@ npx http-server -p 8080
    - File saved as `combined.epub`
    - Option to combine more files
 
+5. **Reader View (Chrome Extension)**
+   - Open: https://merge-epubs.vercel.app/#/reader
+   - Extension sends HTML via postMessage (see WEBAPP_POSTMESSAGE_README.md)
+   - Use toolbar to toggle theme and font size
+
 ## 📁 Project Structure
 
 ```
@@ -91,10 +97,10 @@ merge-epubs/
 ├── script.js            # Application logic and API integration
 ├── README.md            # This file
 ├── ARCHITECTURE.md      # Technical documentation
+├── QUICK_START_AI.md     # Quick start for AI coding assistants
 ├── INTEGRATION-combine-epub.md  # API integration guide
-└── api/                 # (Removed - using direct Render API)
-    ├── config.js        # Config proxy endpoint (DEPRECATED)
-    └── combine-epubs.js # Combine proxy endpoint (DEPRECATED)
+├── WEBAPP_POSTMESSAGE_README.md # Extension postMessage integration
+└── readeasy-postmessage-listener.js # Helper listener reference
 ```
 
 ## 🔧 Configuration
@@ -111,6 +117,29 @@ GET https://epub-combiner-api.onrender.com/config
 POST https://epub-combiner-api.onrender.com/combine-epubs
 Content-Type: multipart/form-data
 Body: epubs (multiple files)
+```
+
+### Reader View (postMessage)
+
+**Reader URL for Chrome extension:**
+```
+https://merge-epubs.vercel.app/#/reader
+```
+
+**Allowed Origins:**
+- chrome-extension://floidkamdcekmpimibhckjfegjpgeeda
+- chrome-extension://ffjopfamcpefiadpmnaoonhidikfdkif
+
+**Expected Payload:**
+```js
+{
+   type: 'readeasy-article',
+   title: string,
+   byline: string,
+   siteName: string,
+   sourceUrl: string,
+   html: string
+}
 ```
 
 ### Upload Limits
@@ -190,6 +219,11 @@ Body: epubs (multiple files)
 - Optimized for direct Render API calls
 - Added upload limit messaging
 - Final testing and optimization
+
+**8 Feb 2026 - Reader View Added**
+- Added reader view route (/#/reader)
+- Implemented secure postMessage handling
+- Added dark theme and font size controls
 
 ## 📝 Browser Support
 

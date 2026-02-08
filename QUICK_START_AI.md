@@ -5,6 +5,7 @@
 ## 🎯 Project At A Glance
 
 - **What**: Web UI to combine multiple EPUB files into one
+- **Also**: Reader view that renders HTML via Chrome extension postMessage
 - **Where**: https://merge-epubs.vercel.app
 - **Tech**: HTML/CSS/JS frontend (Vercel) + Express API (Render)
 - **Status**: ✅ Production Ready
@@ -19,6 +20,9 @@ UI validates and sends to API
 API combines EPUBs (merges content, generates TOC)
         ↓
 User downloads combined EPUB file
+
+Reader View:
+Extension sends HTML via postMessage → UI sanitizes and renders
 ```
 
 ## 🔑 Key Files to Know
@@ -29,6 +33,7 @@ User downloads combined EPUB file
 | **index.html** | HTML structure (IDs used by JS) |
 | **styles.css** | Design (CSS variables for colors) |
 | **ARCHITECTURE.md** | Deep technical details |
+| **WEBAPP_POSTMESSAGE_README.md** | Extension integration details |
 
 ## 💾 Critical Variables
 
@@ -37,6 +42,8 @@ state.files              // Array of File objects to combine
 state.apiUrl            // Current API endpoint
 state.apiConfig         // {maxFiles: 10, maxFileSize: 50MB...}
 state.combinedBlob      // Downloaded EPUB binary data
+readerConfig            // Allowed extension origins + defaults
+readerState             // Current theme + font size
 ```
 
 ## 🚀 Main Functions (Read These First)
@@ -66,6 +73,10 @@ async function combineEpubs() {
 - `testConnection()` - Verify API connectivity
 - `downloadCombinedEpub()` - Trigger download
 - `showError()` - Display error messages
+- `setupReaderMessaging()` - postMessage listener
+- `renderReaderContent()` - Sanitize + render HTML
+- `toggleReaderTheme()` - Theme toggle
+- `setReaderFontSize()` - Font size presets
 
 ## 🔗 API Integration
 
@@ -80,6 +91,14 @@ GET https://epub-combiner-api.onrender.com/config
 POST https://epub-combiner-api.onrender.com/combine-epubs
 Body: FormData with 'epubs' field (multiple files)
 Response: Binary EPUB (Content-Type: application/epub+zip)
+```
+
+**Reader View (postMessage)**:
+```
+Reader URL: https://merge-epubs.vercel.app/#/reader
+Allowed origins: chrome-extension://floidkamdcekmpimibhckjfegjpgeeda
+                 chrome-extension://ffjopfamcpefiadpmnaoonhidikfdkif
+Payload: { type: 'readeasy-article', title, byline, siteName, sourceUrl, html }
 ```
 
 ## ✅ Validation Rules

@@ -13,7 +13,13 @@
             <p class="subtitle">Combine multiple EPUB files into one</p>
         </header>
 
+        <nav class="top-nav" aria-label="Primary">
+            <a class="nav-link" href="#/merge" data-view="merge">Merge EPUBs</a>
+            <a class="nav-link" href="#/reader" data-view="reader">Reader View</a>
+        </nav>
+
         <main>
+            <section id="mergeView" class="view">
             <!-- API Configuration Section -->
             <div id="apiConfig" class="card">
                 <h2>⚙️ API Configuration</h2>
@@ -91,6 +97,31 @@
                     Try Again
                 </button>
             </div>
+            </section>
+
+            <section id="readerView" class="view" style="display: none;">
+                <div class="card reader-card">
+                    <div class="reader-header">
+                        <div class="reader-meta">
+                            <h2 id="readerTitle">Reader View</h2>
+                            <p id="readerByline" class="reader-byline"></p>
+                            <a id="readerSource" class="reader-source" href="#" target="_blank" rel="noopener">Open source</a>
+                        </div>
+                        <div class="reader-tools">
+                            <button id="themeToggle" class="btn-secondary" type="button">Dark</button>
+                            <div class="font-controls" role="group" aria-label="Font size">
+                                <button class="btn-secondary font-btn" data-font="16" type="button">A-</button>
+                                <button class="btn-secondary font-btn" data-font="18" type="button">A</button>
+                                <button class="btn-secondary font-btn" data-font="20" type="button">A+</button>
+                                <button class="btn-secondary font-btn" data-font="22" type="button">A++</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="readerStatus" class="status-message"></div>
+                    <article id="articleRoot" class="reader-content" aria-live="polite"></article>
+                </div>
+            </section>
         </main>
 
         <footer>

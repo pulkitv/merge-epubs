@@ -28,12 +28,15 @@
 ### Purpose
 Web-based application to combine multiple EPUB files into a single EPUB file with automatic table of contents generation.
 
+Additionally, the app includes a **Reader View** that receives HTML content via `postMessage` from a Chrome extension and renders it in a clean, readable format.
+
 ### Tech Stack
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6+)
 - **Hosting**: Vercel (Static site hosting)
 - **Backend**: Express.js/Node.js
 - **API Hosting**: Render.com
 - **File Format**: EPUB (ZIP-based)
+- **Extension Integration**: Chrome extension `postMessage` to Reader View
 
 ### Key Metrics
 - **Frontend Size**: ~50KB (HTML + CSS + JS)
@@ -121,6 +124,15 @@ Browser Downloads File
 - `progressSection` - Progress container
 - `resultSection` - Success/download container
 - `errorSection` - Error container
+- `mergeView` - Merge EPUBs view container
+- `readerView` - Reader view container
+- `readerTitle` - Article title display
+- `readerByline` - Byline/site display
+- `readerSource` - Source URL link
+- `readerStatus` - Reader status message
+- `articleRoot` - Reader HTML content container
+- `themeToggle` - Theme toggle button
+- `.font-btn` - Font size buttons
 
 ---
 
@@ -173,6 +185,20 @@ const state = {
     apiUrl: 'https://epub-combiner-api.onrender.com',  // API endpoint
     apiConfig: null,                              // {maxFiles, maxFileSize, maxFileSizeMB}
     combinedBlob: null                            // Binary EPUB data after combining
+};
+
+const readerConfig = {
+   allowedOrigins: [
+      'chrome-extension://floidkamdcekmpimibhckjfegjpgeeda',
+      'chrome-extension://ffjopfamcpefiadpmnaoonhidikfdkif'
+   ],
+   defaultTheme: 'dark',
+   defaultFontSize: 18
+};
+
+const readerState = {
+   theme: readerConfig.defaultTheme,
+   fontSize: readerConfig.defaultFontSize
 };
 ```
 
@@ -369,6 +395,27 @@ elements.progressText.textContent = 'Uploading files...';
 
 ---
 
+### 6. Reader View (postMessage)
+**File**: `script.js` functions `setupReaderMessaging()`, `handleReaderMessage()`, `renderReaderContent()`
+
+**Flow**:
+1. User opens `/#/reader`
+2. Web app sends `readeasy-ready` to `window.opener`
+3. Extension sends payload via `postMessage`
+4. App validates origin and payload type
+5. Sanitizes HTML and renders to `#articleRoot`
+6. Displays metadata (title/byline/source) and enables reader tools
+
+**Toolbar Tools**:
+- Theme toggle (default dark)
+- Font size presets: 16, 18, 20, 22
+
+**Security**:
+- Allowed origins only (two extension IDs)
+- Sanitizes HTML (removes scripts/iframes and unsafe attributes)
+
+---
+
 ## 🔗 API Integration
 
 ### Endpoints Called
@@ -399,6 +446,29 @@ fetch(`${state.apiUrl}/combine-epubs`, {
 **Response**:
 - Success (200): Binary EPUB file (Content-Type: application/epub+zip)
 - Error (400-500): JSON with error details
+
+### Reader View: postMessage Payload
+
+**Reader URL**:
+```
+https://merge-epubs.vercel.app/#/reader
+```
+
+**Expected Payload**:
+```js
+{
+   type: 'readeasy-article',
+   title: string,
+   byline: string,
+   siteName: string,
+   sourceUrl: string,
+   html: string
+}
+```
+
+**Allowed Origins**:
+- chrome-extension://floidkamdcekmpimibhckjfegjpgeeda
+- chrome-extension://ffjopfamcpefiadpmnaoonhidikfdkif
 
 ### FormData Structure
 
