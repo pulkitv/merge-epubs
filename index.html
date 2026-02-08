@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EPUB Combiner</title>
+    <title>ReadEasy</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>📚 EPUB Combiner</h1>
-            <p class="subtitle">Combine multiple EPUB files into one</p>
-        </header>
-
         <nav class="top-nav" aria-label="Primary">
-            <a class="nav-link" href="#/merge" data-view="merge">Merge EPUBs</a>
-            <a class="nav-link" href="#/reader" data-view="reader">Reader View</a>
+            <div class="nav-left">ReadEasy</div>
+            <div class="nav-center" role="navigation" aria-label="Primary">
+                <a class="nav-link" href="#/merge" data-view="merge">Merge EPUBs</a>
+                <a class="nav-link" href="#/reader" data-view="reader">Reader View</a>
+            </div>
+            <div class="nav-right" aria-hidden="true"></div>
         </nav>
 
         <main>
@@ -101,12 +100,7 @@
 
             <section id="readerView" class="view" style="display: none;">
                 <div class="card reader-card">
-                    <div class="reader-header">
-                        <div class="reader-meta">
-                            <h2 id="readerTitle">Reader View</h2>
-                            <p id="readerByline" class="reader-byline"></p>
-                            <a id="readerSource" class="reader-source" href="#" target="_blank" rel="noopener">Open source</a>
-                        </div>
+                    <div class="reader-tools-row">
                         <div class="reader-tools">
                             <button id="themeToggle" class="btn-secondary" type="button">Dark</button>
                             <div class="font-controls" role="group" aria-label="Font size">
@@ -118,8 +112,15 @@
                         </div>
                     </div>
 
-                    <div id="readerStatus" class="status-message"></div>
-                    <article id="articleRoot" class="reader-content" aria-live="polite"></article>
+                    <div class="reader-scroll">
+                        <div id="readerStatus" class="status-message"></div>
+                        <div class="reader-meta">
+                            <h2 id="readerTitle">Reader View</h2>
+                            <p id="readerByline" class="reader-byline"></p>
+                            <a id="readerSource" class="reader-source" href="#" target="_blank" rel="noopener">Open source</a>
+                        </div>
+                        <article id="articleRoot" class="reader-content" aria-live="polite"></article>
+                    </div>
                 </div>
             </section>
         </main>
