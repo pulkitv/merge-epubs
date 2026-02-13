@@ -434,10 +434,7 @@ function convertToXhtml(html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     
-    // Fix self-closing tags for XHTML compliance
-    const selfClosingTags = ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
-    selfClosingTags.forEach(tagName => {
-       Remove problematic elements
+    // Remove problematic elements
     const removeElements = doc.querySelectorAll('script, style, iframe, object, embed');
     removeElements.forEach(el => el.remove());
     
