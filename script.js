@@ -250,8 +250,21 @@ function clearAuthState() {
 }
 
 function setupGoogleAuth() {
-    if (!window.google || !authConfig.clientId || authConfig.clientId === 'YOUR_GOOGLE_CLIENT_ID') {
+    if (!authConfig.clientId || authConfig.clientId === 'YOUR_GOOGLE_CLIENT_ID') {
         console.warn('Google auth not initialized. Provide a valid client ID.');
+        return;
+    }
+
+    initGoogleAuthWithRetry(0);
+}
+
+function initGoogleAuthWithRetry(attempt) {
+    if (!window.google?.accounts?.id) {
+        if (attempt < 10) {
+            setTimeout(() => initGoogleAuthWithRetry(attempt + 1), 300);
+        } else {
+            console.warn('Google Identity Services did not load.');
+        }
         return;
     }
 
@@ -261,6 +274,7 @@ function setupGoogleAuth() {
     });
 
     if (elements.googleSignIn) {
+        elements.googleSignIn.innerHTML = '';
         window.google.accounts.id.renderButton(elements.googleSignIn, {
             theme: 'outline',
             size: 'medium',
