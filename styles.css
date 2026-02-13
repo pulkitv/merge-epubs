@@ -219,6 +219,36 @@ h2 {
     margin: 0 0 1.35em;
 }
 
+.convert-card {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.convert-textarea {
+    width: 100%;
+    min-height: 280px;
+    resize: vertical;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    background: var(--card-background);
+    color: var(--text-primary);
+    margin-top: 0.5rem;
+}
+
+.convert-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.convert-actions {
+    margin-top: 1rem;
+}
+
 .reader-content p:last-child {
     margin-bottom: 0;
 }

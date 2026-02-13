@@ -15,6 +15,7 @@
             <div class="nav-center" role="navigation" aria-label="Primary">
                 <a class="nav-link" href="#/merge" data-view="merge">Merge EPUBs</a>
                 <a class="nav-link" href="#/reader" data-view="reader">Reader View</a>
+                <a class="nav-link" href="#/convert" data-view="convert">Convert Text</a>
             </div>
             <div class="nav-right" aria-hidden="true"></div>
         </nav>
@@ -123,6 +124,17 @@
                             <a id="readerSource" class="reader-source" href="#" target="_blank" rel="noopener">Open source</a>
                         </div>
                         <article id="articleRoot" class="reader-content" aria-live="polite"></article>
+                    </div>
+                </div>
+            </section>
+
+            <section id="convertView" class="view" style="display: none;">
+                <div class="card convert-card">
+                    <h2>📝 Convert Text</h2>
+                    <p class="info-text">Paste long text below and convert it into a reader-friendly article.</p>
+                    <textarea id="convertInput" class="convert-textarea" rows="12" placeholder="Paste your text here..."></textarea>
+                    <div class="convert-actions">
+                        <button id="convertSubmit" class="btn-primary" disabled>Convert to Reader View</button>
                     </div>
                 </div>
             </section>

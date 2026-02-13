@@ -18,7 +18,8 @@ const readerConfig = {
 const readerState = {
     theme: readerConfig.defaultTheme,
     fontSize: readerConfig.defaultFontSize,
-    currentArticle: null
+    currentArticle: null,
+    convertText: ''
 };
 
 // DOM elements
@@ -29,6 +30,7 @@ const elements = {
     navLinks: document.querySelectorAll('.nav-link'),
     mergeView: document.getElementById('mergeView'),
     readerView: document.getElementById('readerView'),
+    convertView: document.getElementById('convertView'),
     uploadArea: document.getElementById('uploadArea'),
     fileInput: document.getElementById('epubFiles'),
     fileList: document.getElementById('fileList'),
@@ -49,7 +51,9 @@ const elements = {
     articleRoot: document.getElementById('articleRoot'),
     themeToggle: document.getElementById('themeToggle'),
     fontButtons: document.querySelectorAll('.font-btn'),
-    downloadEpubBtn: document.getElementById('downloadEpub')
+    downloadEpubBtn: document.getElementById('downloadEpub'),
+    convertInput: document.getElementById('convertInput'),
+    convertSubmit: document.getElementById('convertSubmit')
 };
 
 // Initialize
@@ -105,6 +109,17 @@ function setupEventListeners() {
     if (elements.downloadEpubBtn) {
         elements.downloadEpubBtn.addEventListener('click', downloadAsEpub);
     }
+
+    if (elements.convertInput) {
+        elements.convertInput.addEventListener('input', () => {
+            readerState.convertText = elements.convertInput.value;
+            updateConvertSubmitState();
+        });
+    }
+
+    if (elements.convertSubmit) {
+        elements.convertSubmit.addEventListener('click', handleConvertSubmit);
+    }
 }
 
 function setupRouting() {
@@ -119,6 +134,9 @@ function handleRouteChange() {
 
 function getViewFromHash() {
     const hash = window.location.hash || '#/merge';
+    if (hash.includes('convert')) {
+        return 'convert';
+    }
     if (hash.includes('reader')) {
         return 'reader';
     }
@@ -126,11 +144,13 @@ function getViewFromHash() {
 }
 
 function setActiveView(view) {
-    if (!elements.mergeView || !elements.readerView) return;
+    if (!elements.mergeView || !elements.readerView || !elements.convertView) return;
 
     const isReader = view === 'reader';
-    elements.mergeView.style.display = isReader ? 'none' : 'block';
+    const isConvert = view === 'convert';
+    elements.mergeView.style.display = isReader || isConvert ? 'none' : 'block';
     elements.readerView.style.display = isReader ? 'block' : 'none';
+    elements.convertView.style.display = isConvert ? 'block' : 'none';
 
     elements.navLinks.forEach((link) => {
         link.classList.toggle('active', link.dataset.view === view);
@@ -140,6 +160,41 @@ function setActiveView(view) {
         setReaderStatus('Waiting for content from extension...', 'success');
         notifyExtensionReady();
     }
+
+    if (isConvert && elements.convertInput) {
+        elements.convertInput.value = readerState.convertText || '';
+        updateConvertSubmitState();
+    }
+}
+
+function updateConvertSubmitState() {
+    if (!elements.convertSubmit || !elements.convertInput) return;
+    const hasText = elements.convertInput.value.trim().length > 0;
+    elements.convertSubmit.disabled = !hasText;
+}
+
+function handleConvertSubmit() {
+    if (!elements.convertInput) return;
+    const rawText = elements.convertInput.value.trim();
+    if (!rawText) return;
+
+    readerState.convertText = rawText;
+    const html = convertPlainTextToHtml(rawText);
+
+    const payload = {
+        type: 'readeasy-article',
+        title: 'Converted Text',
+        byline: '',
+        siteName: '',
+        sourceUrl: '',
+        html
+    };
+
+    if (window.location.hash !== '#/reader') {
+        window.location.hash = '#/reader';
+    }
+
+    renderReaderContent(payload);
 }
 
 function toggleReaderTheme() {
@@ -223,6 +278,27 @@ function renderReaderContent(payload) {
     }
 
     setReaderStatus('Content loaded successfully.', 'success');
+}
+
+function convertPlainTextToHtml(text) {
+    const escaped = escapeHtml(text);
+    const paragraphs = escaped
+        .split(/\n\s*\n/)
+        .map((para) => para.trim())
+        .filter(Boolean)
+        .map((para) => `<p>${para.replace(/\n+/g, '<br />')}</p>`)
+        .join('\n');
+
+    return paragraphs || '<p></p>';
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function sanitizeArticleHtml(html, sourceUrl) {
