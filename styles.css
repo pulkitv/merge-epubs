@@ -224,6 +224,31 @@ h2 {
     margin: 0 auto;
 }
 
+.convert-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 0.75rem;
+}
+
+.convert-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    background: var(--card-background);
+    color: var(--text-primary);
+}
+
+.convert-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
 .convert-textarea {
     width: 100%;
     min-height: 280px;

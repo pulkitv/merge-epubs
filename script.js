@@ -19,7 +19,8 @@ const readerState = {
     theme: readerConfig.defaultTheme,
     fontSize: readerConfig.defaultFontSize,
     currentArticle: null,
-    convertText: ''
+    convertText: '',
+    convertTitle: ''
 };
 
 // DOM elements
@@ -53,7 +54,8 @@ const elements = {
     fontButtons: document.querySelectorAll('.font-btn'),
     downloadEpubBtn: document.getElementById('downloadEpub'),
     convertInput: document.getElementById('convertInput'),
-    convertSubmit: document.getElementById('convertSubmit')
+    convertSubmit: document.getElementById('convertSubmit'),
+    convertTitle: document.getElementById('convertTitle')
 };
 
 // Initialize
@@ -117,6 +119,12 @@ function setupEventListeners() {
         });
     }
 
+    if (elements.convertTitle) {
+        elements.convertTitle.addEventListener('input', () => {
+            readerState.convertTitle = elements.convertTitle.value;
+        });
+    }
+
     if (elements.convertSubmit) {
         elements.convertSubmit.addEventListener('click', handleConvertSubmit);
     }
@@ -165,6 +173,10 @@ function setActiveView(view) {
         elements.convertInput.value = readerState.convertText || '';
         updateConvertSubmitState();
     }
+
+    if (isConvert && elements.convertTitle) {
+        elements.convertTitle.value = readerState.convertTitle || '';
+    }
 }
 
 function updateConvertSubmitState() {
@@ -179,11 +191,16 @@ function handleConvertSubmit() {
     if (!rawText) return;
 
     readerState.convertText = rawText;
+    if (elements.convertTitle) {
+        readerState.convertTitle = elements.convertTitle.value.trim();
+    }
     const html = convertPlainTextToHtml(rawText);
+
+    const title = readerState.convertTitle || 'Converted Text';
 
     const payload = {
         type: 'readeasy-article',
-        title: 'Converted Text',
+        title,
         byline: '',
         siteName: '',
         sourceUrl: '',
