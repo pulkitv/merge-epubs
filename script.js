@@ -165,9 +165,16 @@ function setReaderFontSize(size) {
 
 function setupReaderMessaging() {
     window.addEventListener('message', handleReaderMessage);
+    console.log('Reader messaging setup complete. Listening for messages from:', readerConfig.allowedOrigins);
 }
 
 function handleReaderMessage(event) {
+    console.log('Message received:', {
+        origin: event.origin,
+        data: event.data,
+        allowed: readerConfig.allowedOrigins.includes(event.origin)
+    });
+
     if (!readerConfig.allowedOrigins.includes(event.origin)) {
         console.log('Message from unauthorized origin:', event.origin);
         return;
@@ -175,14 +182,15 @@ function handleReaderMessage(event) {
 
     const payload = event.data;
     if (!payload || payload.type !== 'readeasy-article') {
-        console.log('Invalid payload:', payload);
+        console.log('Invalid payload type:', payload?.type);
         return;
     }
 
-    console.log('Received article:', payload.title);
+    console.log('Valid article received:', payload.title);
     
     // Switch to reader view if not already there
     if (window.location.hash !== '#/reader') {
+        console.log('Navigating to reader view');
         window.location.hash = '#/reader';
     }
     
