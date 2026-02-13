@@ -481,7 +481,10 @@ function convertToXhtml(html) {
         .replace(/&nbsp;/g, '&#160;')
         .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;')
         // Remove empty attributes
-        .replace(/\s+\w+=""/g, '
+        .replace(/\s+\w+=""/g, '');
+    
+    return xhtml;
+}
 
 function notifyExtensionReady() {
     if (!window.opener) return;
