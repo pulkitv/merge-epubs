@@ -306,14 +306,14 @@ async function downloadAsEpub() {
         zip.file('META-INF/container.xml', containerXml);
 
         // 3. Add OEBPS/content.opf
-        const sanitizedTitle = title.replace(/[<>&"']/g, '');
-        const sanitizedAuthor = author.replace(/[<>&"']/g, '');
+        const xmlEscapedTitle = escapeXml(title);
+        const xmlEscapedAuthor = escapeXml(author);
         const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="uid">${Date.now()}</dc:identifier>
-    <dc:title>${sanitizedTitle}</dc:title>
-    <dc:creator>${sanitizedAuthor}</dc:creator>
+    <dc:identifier id="uid">urn:uuid:${generateUuid()}</dc:identifier>
+    <dc:title>${xmlEscapedTitle}</dc:title>
+    <dc:creator>${xmlEscapedAuthor}</dc:creator>
     <dc:language>en</dc:language>
     <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
   </metadata>
@@ -326,30 +326,41 @@ async function downloadAsEpub() {
 </package>`;
         zip.file('OEBPS/content.opf', contentOpf);
 
-        // 4. Add OEBPS/content.xhtml
+        // 4. Convert HTML to valid XHTML
+        const xhtmlContent = convertToXhtml(html);
+
+        // 5. Add OEBPS/content.xhtml
         const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-  <title>${sanitizedTitle}</title>
+  <title>${xmlEscapedTitle}</title>
   <meta charset="UTF-8"/>
 </head>
 <body>
-  <h1>${sanitizedTitle}</h1>
-  ${author ? `<p><em>By ${sanitizedAuthor}</em></p>` : ''}
-  ${sourceUrl ? `<p><a href="${sourceUrl}">Original source</a></p>` : ''}
-  <hr/>
-  ${html}
+  <section>
+    <h1>${xmlEscapedTitle}</h1>
+    ${author !== 'Unknown Author' ? `<p><em>By ${xmlEscapedAuthor}</em></p>` : ''}
+    ${sourceUrl ? `<p><a href="${escapeXml(sourceUrl)}">Original source</a></p>` : ''}
+    <hr/>
+    ${xhtmlContent}
+  </section>
 </body>
 </html>`;
         zip.file('OEBPS/content.xhtml', contentXhtml);
 
         // Generate and download
-        const blob = await zip.generateAsync({ type: 'blob' });
+        const blob = await zip.generateAsync({ 
+            type: 'blob',
+            mimeType: 'application/epub+zip',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 9 }
+        });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${sanitizedTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.epub`;
+        const safeFilename = title.replace(/[^a-z0-9\s-]/gi, '').replace(/\s+/g, '_').substring(0, 50);
+        a.download = `${safeFilename || 'article'}.epub`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -358,6 +369,63 @@ async function downloadAsEpub() {
         console.error('EPUB generation failed:', error);
         alert('Failed to generate EPUB file. Please try again.');
     }
+}
+
+function escapeXml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function generateUuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+function convertToXhtml(html) {
+    if (!html) return '';
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Fix self-closing tags for XHTML compliance
+    const selfClosingTags = ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
+    selfClosingTags.forEach(tagName => {
+        doc.querySelectorAll(tagName).forEach(element => {
+            if (!element.hasAttribute('data-xhtml-fixed')) {
+                element.setAttribute('data-xhtml-fixed', '');
+            }
+        });
+    });
+    
+    // Serialize to XHTML-compatible string
+    const serializer = new XMLSerializer();
+    let xhtml = '';
+    
+    Array.from(doc.body.childNodes).forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            xhtml += serializer.serializeToString(node);
+        } else if (node.nodeType === Node.TEXT_NODE) {
+            xhtml += node.textContent;
+        }
+    });
+    
+    // Clean up XHTML formatting
+    xhtml = xhtml
+        .replace(/<br>/g, '<br/>')
+        .replace(/<hr>/g, '<hr/>')
+        .replace(/<img([^>]*[^/])>/g, '<img$1/>')
+        .replace(/data-xhtml-fixed=""/g, '')
+        .replace(/&nbsp;/g, '&#160;');
+    
+    return xhtml;
 }
 
 function notifyExtensionReady() {
