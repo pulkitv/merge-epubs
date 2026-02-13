@@ -471,16 +471,22 @@ function convertToXhtml(html) {
     // Serialize to string
     let xhtml = doc.body.innerHTML;
     
-    // XHTML compliance fixes
+    // XHTML compliance fixes - handle all void elements
+    const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 
+                          'link', 'meta', 'param', 'source', 'track', 'wbr'];
+    
+    voidElements.forEach(tag => {
+        // Match opening tags that aren't already self-closed
+        const regex = new RegExp(`<${tag}([^>]*?)(?<!/)>`, 'gi');
+        xhtml = xhtml.replace(regex, `<${tag}$1 />`);
+    });
+    
+    // Clean up any remaining issues
     xhtml = xhtml
-        .replace(/<br>/gi, '<br />')
-        .replace(/<hr>/gi, '<hr />')
-        .replace(/<img([^>]*?)>/gi, '<img$1 />')
-        .replace(/<input([^>]*?)>/gi, '<input$1 />')
-        .replace(/<meta([^>]*?)>/gi, '<meta$1 />')
-        .replace(/<link([^>]*?)>/gi, '<link$1 />')
         .replace(/&nbsp;/g, '&#160;')
         .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;')
+        // Fix double slashes
+        .replace(/\/\s*\/>/g, ' />')
         // Remove empty attributes
         .replace(/\s+\w+=""/g, '');
     
