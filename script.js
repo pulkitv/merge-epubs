@@ -15,12 +15,22 @@ const readerConfig = {
     defaultFontSize: 18
 };
 
+const authConfig = {
+    clientId: '1013859959230-hfo0mohq8c02hkea0v56rshdv660b2qp.apps.googleusercontent.com'
+};
+
 const readerState = {
     theme: readerConfig.defaultTheme,
     fontSize: readerConfig.defaultFontSize,
     currentArticle: null,
     convertText: '',
     convertTitle: ''
+};
+
+const authState = {
+    isLoggedIn: false,
+    profile: null,
+    idToken: null
 };
 
 // DOM elements
@@ -55,7 +65,13 @@ const elements = {
     downloadEpubBtn: document.getElementById('downloadEpub'),
     convertInput: document.getElementById('convertInput'),
     convertSubmit: document.getElementById('convertSubmit'),
-    convertTitle: document.getElementById('convertTitle')
+    convertTitle: document.getElementById('convertTitle'),
+    convertLink: document.querySelector('.nav-link[data-view="convert"]'),
+    googleSignIn: document.getElementById('googleSignIn'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    authProfile: document.getElementById('authProfile'),
+    authAvatar: document.getElementById('authAvatar'),
+    authName: document.getElementById('authName')
 };
 
 // Initialize
@@ -64,9 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.apiUrlInput.value = state.apiUrl;
     setReaderTheme(readerState.theme);
     setReaderFontSize(readerState.fontSize);
+    loadAuthState();
     setupEventListeners();
     setupRouting();
     setupReaderMessaging();
+    setupGoogleAuth();
     testConnection(); // Auto-test connection on load
 });
 
@@ -112,6 +130,10 @@ function setupEventListeners() {
         elements.downloadEpubBtn.addEventListener('click', downloadAsEpub);
     }
 
+    if (elements.logoutBtn) {
+        elements.logoutBtn.addEventListener('click', handleLogout);
+    }
+
     if (elements.convertInput) {
         elements.convertInput.addEventListener('input', () => {
             readerState.convertText = elements.convertInput.value;
@@ -154,6 +176,11 @@ function getViewFromHash() {
 function setActiveView(view) {
     if (!elements.mergeView || !elements.readerView || !elements.convertView) return;
 
+    if (view === 'convert' && !authState.isLoggedIn) {
+        window.location.hash = '#/reader';
+        return;
+    }
+
     const isReader = view === 'reader';
     const isConvert = view === 'convert';
     elements.mergeView.style.display = isReader || isConvert ? 'none' : 'block';
@@ -176,6 +203,127 @@ function setActiveView(view) {
 
     if (isConvert && elements.convertTitle) {
         elements.convertTitle.value = readerState.convertTitle || '';
+    }
+}
+
+function loadAuthState() {
+    try {
+        const stored = localStorage.getItem('readeasy-auth');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            authState.isLoggedIn = Boolean(parsed?.idToken);
+            authState.profile = parsed?.profile || null;
+            authState.idToken = parsed?.idToken || null;
+        }
+    } catch (error) {
+        console.warn('Unable to load auth state', error);
+    }
+
+    updateAuthUI();
+}
+
+function saveAuthState() {
+    try {
+        const payload = {
+            idToken: authState.idToken,
+            profile: authState.profile
+        };
+        localStorage.setItem('readeasy-auth', JSON.stringify(payload));
+    } catch (error) {
+        console.warn('Unable to save auth state', error);
+    }
+}
+
+function clearAuthState() {
+    authState.isLoggedIn = false;
+    authState.profile = null;
+    authState.idToken = null;
+    localStorage.removeItem('readeasy-auth');
+}
+
+function setupGoogleAuth() {
+    if (!window.google || !authConfig.clientId || authConfig.clientId === 'YOUR_GOOGLE_CLIENT_ID') {
+        console.warn('Google auth not initialized. Provide a valid client ID.');
+        return;
+    }
+
+    window.google.accounts.id.initialize({
+        client_id: authConfig.clientId,
+        callback: handleGoogleCredential
+    });
+
+    if (elements.googleSignIn) {
+        window.google.accounts.id.renderButton(elements.googleSignIn, {
+            theme: 'outline',
+            size: 'medium',
+            shape: 'pill'
+        });
+    }
+}
+
+function handleGoogleCredential(response) {
+    if (!response?.credential) return;
+
+    const profile = decodeJwtProfile(response.credential);
+    authState.isLoggedIn = true;
+    authState.idToken = response.credential;
+    authState.profile = profile;
+    saveAuthState();
+    updateAuthUI();
+}
+
+function handleLogout() {
+    clearAuthState();
+    updateAuthUI();
+    if (window.location.hash === '#/convert') {
+        window.location.hash = '#/reader';
+    }
+}
+
+function decodeJwtProfile(token) {
+    try {
+        const payload = token.split('.')[1];
+        const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+        return {
+            name: decoded.name || decoded.given_name || 'User',
+            email: decoded.email || '',
+            picture: decoded.picture || ''
+        };
+    } catch (error) {
+        console.warn('Unable to decode id token', error);
+        return { name: 'User', email: '', picture: '' };
+    }
+}
+
+function updateAuthUI() {
+    if (elements.convertLink) {
+        elements.convertLink.style.display = authState.isLoggedIn ? 'inline-flex' : 'none';
+    }
+
+    if (elements.authProfile) {
+        elements.authProfile.style.display = authState.isLoggedIn ? 'flex' : 'none';
+    }
+
+    if (elements.authName) {
+        elements.authName.textContent = authState.profile?.name || 'User';
+    }
+
+    if (elements.authAvatar) {
+        if (authState.profile?.picture) {
+            elements.authAvatar.src = authState.profile.picture;
+            elements.authAvatar.style.display = 'block';
+        } else {
+            elements.authAvatar.removeAttribute('src');
+            elements.authAvatar.style.display = 'none';
+        }
+    }
+
+    if (elements.logoutBtn) {
+        elements.logoutBtn.style.display = authState.isLoggedIn ? 'inline-flex' : 'none';
+    }
+
+    if (elements.googleSignIn) {
+        elements.googleSignIn.style.display = authState.isLoggedIn ? 'none' : 'block';
     }
 }
 

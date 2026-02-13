@@ -7,6 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📖</text></svg>">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="container">
@@ -17,7 +18,16 @@
                 <a class="nav-link" href="#/reader" data-view="reader">Reader View</a>
                 <a class="nav-link" href="#/convert" data-view="convert">Convert Text</a>
             </div>
-            <div class="nav-right" aria-hidden="true"></div>
+            <div class="nav-right">
+                <div class="auth-area">
+                    <div id="authProfile" class="auth-profile" style="display: none;">
+                        <img id="authAvatar" class="auth-avatar" alt="" />
+                        <span id="authName" class="auth-name"></span>
+                    </div>
+                    <div id="googleSignIn"></div>
+                    <button id="logoutBtn" class="btn-secondary auth-logout" type="button" style="display: none;">Logout</button>
+                </div>
+            </div>
         </nav>
 
         <main>
