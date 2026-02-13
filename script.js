@@ -169,14 +169,23 @@ function setupReaderMessaging() {
 
 function handleReaderMessage(event) {
     if (!readerConfig.allowedOrigins.includes(event.origin)) {
+        console.log('Message from unauthorized origin:', event.origin);
         return;
     }
 
     const payload = event.data;
     if (!payload || payload.type !== 'readeasy-article') {
+        console.log('Invalid payload:', payload);
         return;
     }
 
+    console.log('Received article:', payload.title);
+    
+    // Switch to reader view if not already there
+    if (window.location.hash !== '#/reader') {
+        window.location.hash = '#/reader';
+    }
+    
     renderReaderContent(payload);
 }
 
