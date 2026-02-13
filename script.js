@@ -438,34 +438,38 @@ function convertToXhtml(html) {
     const removeElements = doc.querySelectorAll('script, style, iframe, object, embed');
     removeElements.forEach(el => el.remove());
     
-    // Fix self-closing tags
-    const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'];
-    selfClosing.forEach(tag => {
-        doc.querySelectorAll(tag).forEach(el => {
-            // Ensure required attributes exist
-            if (tag === 'img' && !el.hasAttribute('alt')) {
-                el.setAttribute('alt', '');
+    // Clean up all elements - remove invalid attributes
+    doc.querySelectorAll('*').forEach(el => {
+        // Remove event handlers and data attributes
+        const attrsToRemove = [];
+        for (let i = 0; i < el.attributes.length; i++) {
+            const attr = el.attributes[i];
+            const name = attr.name.toLowerCase();
+            
+            // Remove event handlers, style, and problematic attributes
+            if (name.startsWith('on') || name === 'style' || name.startsWith('data-') || 
+                name.includes(':') || !name.match(/^[a-z][a-z0-9-]*$/i)) {
+                attrsToRemove.push(attr.name);
             }
-        });
+        }
+        attrsToRemove.forEach(attr => el.removeAttribute(attr));
+        
+        // Ensure required attributes for certain elements
+        if (el.tagName.toLowerCase() === 'img' && !el.hasAttribute('alt')) {
+            el.setAttribute('alt', '');
+        }
+        
+        // Clean attribute values - escape quotes
+        for (let i = 0; i < el.attributes.length; i++) {
+            const attr = el.attributes[i];
+            if (attr.value) {
+                attr.value = attr.value.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+            }
+        }
     });
     
     // Serialize to string
-    const serializer = new XMLSerializer();
-    let xhtml = '';
-    
-    try {
-        Array.from(doc.body.childNodes).forEach(node => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const serialized = serializer.serializeToString(node);
-                xhtml += serialized;
-            } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-                xhtml += escapeXml(node.textContent);
-            }
-        });
-    } catch (e) {
-        // Fallback to innerHTML if serialization fails
-        xhtml = doc.body.innerHTML;
-    }
+    let xhtml = doc.body.innerHTML;
     
     // XHTML compliance fixes
     xhtml = xhtml
