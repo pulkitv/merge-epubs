@@ -17,7 +17,8 @@ const readerConfig = {
 
 const readerState = {
     theme: readerConfig.defaultTheme,
-    fontSize: readerConfig.defaultFontSize
+    fontSize: readerConfig.defaultFontSize,
+    currentArticle: null
 };
 
 // DOM elements
@@ -47,7 +48,8 @@ const elements = {
     readerStatus: document.getElementById('readerStatus'),
     articleRoot: document.getElementById('articleRoot'),
     themeToggle: document.getElementById('themeToggle'),
-    fontButtons: document.querySelectorAll('.font-btn')
+    fontButtons: document.querySelectorAll('.font-btn'),
+    downloadEpubBtn: document.getElementById('downloadEpub')
 };
 
 // Initialize
@@ -98,6 +100,11 @@ function setupEventListeners() {
             }
         });
     });
+
+    // Download EPUB
+    if (elements.downloadEpubBtn) {
+        elements.downloadEpubBtn.addEventListener('click', downloadAsEpub);
+    }
 }
 
 function setupRouting() {
@@ -190,6 +197,14 @@ function renderReaderContent(payload) {
         elements.articleRoot.innerHTML = sanitizedHtml;
     }
 
+    // Store payload for EPUB download
+    readerState.currentArticle = payload;
+    
+    // Enable download button
+    if (elements.downloadEpubBtn) {
+        elements.downloadEpubBtn.disabled = false;
+    }
+
     setReaderStatus('Content loaded successfully.', 'success');
 }
 
@@ -261,6 +276,88 @@ function setReaderStatus(message, type = 'success') {
     elements.readerStatus.className = `status-message ${type}`;
     elements.readerStatus.textContent = message;
     elements.readerStatus.style.display = 'block';
+}
+
+async function downloadAsEpub() {
+    if (!readerState.currentArticle) {
+        alert('No article loaded to download');
+        return;
+    }
+
+    const payload = readerState.currentArticle;
+    const title = payload.title || 'Untitled Article';
+    const author = payload.byline || 'Unknown Author';
+    const sourceUrl = payload.sourceUrl || '';
+    const html = payload.html || '';
+
+    try {
+        const zip = new JSZip();
+
+        // 1. Add mimetype (must be first, uncompressed)
+        zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+        // 2. Add META-INF/container.xml
+        const containerXml = `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`;
+        zip.file('META-INF/container.xml', containerXml);
+
+        // 3. Add OEBPS/content.opf
+        const sanitizedTitle = title.replace(/[<>&"']/g, '');
+        const sanitizedAuthor = author.replace(/[<>&"']/g, '');
+        const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">${Date.now()}</dc:identifier>
+    <dc:title>${sanitizedTitle}</dc:title>
+    <dc:creator>${sanitizedAuthor}</dc:creator>
+    <dc:language>en</dc:language>
+    <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
+  </metadata>
+  <manifest>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="content"/>
+  </spine>
+</package>`;
+        zip.file('OEBPS/content.opf', contentOpf);
+
+        // 4. Add OEBPS/content.xhtml
+        const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>${sanitizedTitle}</title>
+  <meta charset="UTF-8"/>
+</head>
+<body>
+  <h1>${sanitizedTitle}</h1>
+  ${author ? `<p><em>By ${sanitizedAuthor}</em></p>` : ''}
+  ${sourceUrl ? `<p><a href="${sourceUrl}">Original source</a></p>` : ''}
+  <hr/>
+  ${html}
+</body>
+</html>`;
+        zip.file('OEBPS/content.xhtml', contentXhtml);
+
+        // Generate and download
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${sanitizedTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.epub`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('EPUB generation failed:', error);
+        alert('Failed to generate EPUB file. Please try again.');
+    }
 }
 
 function notifyExtensionReady() {
