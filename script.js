@@ -305,46 +305,68 @@ async function downloadAsEpub() {
 </container>`;
         zip.file('META-INF/container.xml', containerXml);
 
-        // 3. Add OEBPS/content.opf
+        // 3. Add OEBPS/toc.ncx
         const xmlEscapedTitle = escapeXml(title);
         const xmlEscapedAuthor = escapeXml(author);
+        const uuid = generateUuid();
+        const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:${uuid}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>${xmlEscapedTitle}</text>
+  </docTitle>
+  <navMap>
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel>
+        <text>${xmlEscapedTitle}</text>
+      </navLabel>
+      <content src="content.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>`;
+        zip.file('OEBPS/toc.ncx', tocNcx);
+
+        // 4. Add OEBPS/content.opf
         const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="uid">urn:uuid:${generateUuid()}</dc:identifier>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <dc:identifier id="uid">urn:uuid:${uuid}</dc:identifier>
     <dc:title>${xmlEscapedTitle}</dc:title>
-    <dc:creator>${xmlEscapedAuthor}</dc:creator>
+    <dc:creator opf:role="aut">${xmlEscapedAuthor}</dc:creator>
     <dc:language>en</dc:language>
-    <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
+    <meta name="generator" content="ReadEasy"/>
   </metadata>
   <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
-  <spine>
+  <spine toc="ncx">
     <itemref idref="content"/>
   </spine>
 </package>`;
         zip.file('OEBPS/content.opf', contentOpf);
 
-        // 4. Convert HTML to valid XHTML
+        // 5. Convert HTML to valid XHTML
         const xhtmlContent = convertToXhtml(html);
 
-        // 5. Add OEBPS/content.xhtml
+        // 6. Add OEBPS/content.xhtml
         const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
   <title>${xmlEscapedTitle}</title>
-  <meta charset="UTF-8"/>
 </head>
 <body>
-  <section>
-    <h1>${xmlEscapedTitle}</h1>
-    ${author !== 'Unknown Author' ? `<p><em>By ${xmlEscapedAuthor}</em></p>` : ''}
-    ${sourceUrl ? `<p><a href="${escapeXml(sourceUrl)}">Original source</a></p>` : ''}
-    <hr/>
-    ${xhtmlContent}
-  </section>
+  <h1>${xmlEscapedTitle}</h1>
+  ${author !== 'Unknown Author' ? `<p><em>By ${xmlEscapedAuthor}</em></p>` : ''}
+  ${sourceUrl ? `<p><a href="${escapeXml(sourceUrl)}">Original source</a></p>` : ''}
+  <hr />
+  ${xhtmlContent}
 </body>
 </html>`;
         zip.file('OEBPS/content.xhtml', contentXhtml);
@@ -398,35 +420,51 @@ function convertToXhtml(html) {
     // Fix self-closing tags for XHTML compliance
     const selfClosingTags = ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
     selfClosingTags.forEach(tagName => {
-        doc.querySelectorAll(tagName).forEach(element => {
-            if (!element.hasAttribute('data-xhtml-fixed')) {
-                element.setAttribute('data-xhtml-fixed', '');
+       Remove problematic elements
+    const removeElements = doc.querySelectorAll('script, style, iframe, object, embed');
+    removeElements.forEach(el => el.remove());
+    
+    // Fix self-closing tags
+    const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'];
+    selfClosing.forEach(tag => {
+        doc.querySelectorAll(tag).forEach(el => {
+            // Ensure required attributes exist
+            if (tag === 'img' && !el.hasAttribute('alt')) {
+                el.setAttribute('alt', '');
             }
         });
     });
     
-    // Serialize to XHTML-compatible string
+    // Serialize to string
     const serializer = new XMLSerializer();
     let xhtml = '';
     
-    Array.from(doc.body.childNodes).forEach(node => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-            xhtml += serializer.serializeToString(node);
-        } else if (node.nodeType === Node.TEXT_NODE) {
-            xhtml += node.textContent;
-        }
-    });
+    try {
+        Array.from(doc.body.childNodes).forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const serialized = serializer.serializeToString(node);
+                xhtml += serialized;
+            } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                xhtml += escapeXml(node.textContent);
+            }
+        });
+    } catch (e) {
+        // Fallback to innerHTML if serialization fails
+        xhtml = doc.body.innerHTML;
+    }
     
-    // Clean up XHTML formatting
+    // XHTML compliance fixes
     xhtml = xhtml
-        .replace(/<br>/g, '<br/>')
-        .replace(/<hr>/g, '<hr/>')
-        .replace(/<img([^>]*[^/])>/g, '<img$1/>')
-        .replace(/data-xhtml-fixed=""/g, '')
-        .replace(/&nbsp;/g, '&#160;');
-    
-    return xhtml;
-}
+        .replace(/<br>/gi, '<br />')
+        .replace(/<hr>/gi, '<hr />')
+        .replace(/<img([^>]*?)>/gi, '<img$1 />')
+        .replace(/<input([^>]*?)>/gi, '<input$1 />')
+        .replace(/<meta([^>]*?)>/gi, '<meta$1 />')
+        .replace(/<link([^>]*?)>/gi, '<link$1 />')
+        .replace(/&nbsp;/g, '&#160;')
+        .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;')
+        // Remove empty attributes
+        .replace(/\s+\w+=""/g, '
 
 function notifyExtensionReady() {
     if (!window.opener) return;
