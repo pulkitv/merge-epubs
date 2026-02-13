@@ -151,6 +151,27 @@ header {
     border-color: var(--primary-color);
 }
 
+.nav-link.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+    position: relative;
+}
+
+.nav-link.locked:hover::after {
+    content: 'Log In Required';
+    position: absolute;
+    top: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: #fff;
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 20;
+}
+
 h1 {
     font-size: 2.5rem;
     font-weight: 700;

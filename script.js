@@ -134,6 +134,14 @@ function setupEventListeners() {
         elements.logoutBtn.addEventListener('click', handleLogout);
     }
 
+    if (elements.convertLink) {
+        elements.convertLink.addEventListener('click', (event) => {
+            if (!authState.isLoggedIn) {
+                event.preventDefault();
+            }
+        });
+    }
+
     if (elements.convertInput) {
         elements.convertInput.addEventListener('input', () => {
             readerState.convertText = elements.convertInput.value;
@@ -297,7 +305,10 @@ function decodeJwtProfile(token) {
 
 function updateAuthUI() {
     if (elements.convertLink) {
-        elements.convertLink.style.display = authState.isLoggedIn ? 'inline-flex' : 'none';
+        elements.convertLink.style.display = 'inline-flex';
+        elements.convertLink.classList.toggle('locked', !authState.isLoggedIn);
+        elements.convertLink.setAttribute('aria-disabled', authState.isLoggedIn ? 'false' : 'true');
+        elements.convertLink.setAttribute('title', authState.isLoggedIn ? '' : 'Log In Required');
     }
 
     if (elements.authProfile) {
