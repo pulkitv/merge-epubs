@@ -348,7 +348,45 @@ async function downloadAsEpub() {
 </ncx>`;
         zip.file('OEBPS/toc.ncx', tocNcx);
 
-        // 4. Add OEBPS/content.opf
+        // 4. Extract and download images (before creating content.opf)
+        const parser = new DOMParser();
+        const htmlDoc = parser.parseFromString(html, 'text/html');
+        const images = htmlDoc.querySelectorAll('img');
+        const imageManifest = [];
+        let imageIndex = 0;
+
+        for (const img of images) {
+            const imgSrc = img.getAttribute('src');
+            if (imgSrc && (imgSrc.startsWith('http://') || imgSrc.startsWith('https://'))) {
+                try {
+                    const response = await fetch(imgSrc);
+                    const blob = await response.blob();
+                    const ext = imgSrc.split('.').pop().split('?')[0].toLowerCase();
+                    const validExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext) ? ext : 'jpg';
+                    const imgFilename = `images/img${imageIndex}.${validExt}`;
+                    const mediaType = blob.type || `image/${validExt === 'jpg' ? 'jpeg' : validExt}`;
+                    
+                    zip.file(`OEBPS/${imgFilename}`, blob);
+                    imageManifest.push({ id: `img${imageIndex}`, href: imgFilename, type: mediaType });
+                    
+                    // Update img src in HTML to reference local file
+                    img.setAttribute('src', imgFilename);
+                    imageIndex++;
+                } catch (error) {
+                    console.warn('Failed to download image:', imgSrc, error);
+                    // Keep original URL if download fails
+                }
+            }
+        }
+
+        // 6. Convert HTML to valid XHTML
+        const xhtmlContent = convertToXhtml(htmlDoc.body.innerHTML);
+
+        // 7. Update content.opf with image manifest
+        const imageManifestItems = imageManifest.map(img => 
+            `    <item id="${img.id}" href="${img.href}" media-type="${img.type}"/>`
+        ).join('\n');
+
         const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
@@ -361,6 +399,7 @@ async function downloadAsEpub() {
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+${imageManifestItems}
   </manifest>
   <spine toc="ncx">
     <itemref idref="content"/>
@@ -368,10 +407,7 @@ async function downloadAsEpub() {
 </package>`;
         zip.file('OEBPS/content.opf', contentOpf);
 
-        // 5. Convert HTML to valid XHTML
-        const xhtmlContent = convertToXhtml(html);
-
-        // 6. Add OEBPS/content.xhtml
+        // 8. Add OEBPS/content.xhtml
         const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
