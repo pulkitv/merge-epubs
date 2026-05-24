@@ -25,15 +25,38 @@
     --reader-text: #e5e7eb;
     --reader-muted: #9ca3af;
     --reader-link: #93c5fd;
+    --reader-divider: rgba(255, 255, 255, 0.08);
+    --reader-btn-bg: rgba(255, 255, 255, 0.08);
+    --reader-btn-border: rgba(255, 255, 255, 0.18);
+    --reader-btn-hover: rgba(255, 255, 255, 0.14);
+    --reader-card-border: rgba(255, 255, 255, 0.08);
     --top-nav-height: 3.5rem;
 }
 
 body[data-theme="light"] {
-    --reader-bg: #f9fafb;
+    --reader-bg: #f3f4f6;
     --reader-surface: #ffffff;
     --reader-text: #111827;
     --reader-muted: #6b7280;
     --reader-link: #2563eb;
+    --reader-divider: rgba(0, 0, 0, 0.09);
+    --reader-btn-bg: rgba(0, 0, 0, 0.06);
+    --reader-btn-border: rgba(0, 0, 0, 0.18);
+    --reader-btn-hover: rgba(0, 0, 0, 0.11);
+    --reader-card-border: rgba(0, 0, 0, 0.1);
+}
+
+body[data-theme="warm"] {
+    --reader-bg: #faf6e9;
+    --reader-surface: #f0e6d2;
+    --reader-text: #3d2b1f;
+    --reader-muted: #8a7256;
+    --reader-link: #7c4f1e;
+    --reader-divider: rgba(100, 70, 30, 0.18);
+    --reader-btn-bg: rgba(100, 70, 30, 0.1);
+    --reader-btn-border: rgba(100, 70, 30, 0.28);
+    --reader-btn-hover: rgba(100, 70, 30, 0.18);
+    --reader-card-border: rgba(100, 70, 30, 0.2);
 }
 
 body {
@@ -205,7 +228,7 @@ h2 {
     overflow: hidden;
     background: var(--reader-bg);
     color: var(--reader-text);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--reader-card-border);
     display: flex;
     flex-direction: column;
 }
@@ -216,7 +239,7 @@ h2 {
     z-index: 5;
     background: var(--reader-surface);
     padding: 0.75rem 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--reader-divider);
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -254,6 +277,36 @@ h2 {
     align-items: center;
     gap: 0.75rem;
     flex-wrap: nowrap;
+}
+
+/* Reader toolbar buttons adapt to reader theme (dark / light / warm) */
+.reader-tools-row .btn-secondary,
+.reader-tools-row .btn-success,
+.reader-tools-row .font-btn {
+    background: var(--reader-btn-bg);
+    color: var(--reader-text);
+    border-color: var(--reader-btn-border);
+}
+
+.reader-tools-row .btn-secondary:hover,
+.reader-tools-row .font-btn:hover {
+    background: var(--reader-btn-hover);
+}
+
+.reader-tools-row .btn-success {
+    background: var(--success-color);
+    color: #fff;
+    border-color: var(--success-color);
+}
+
+.reader-tools-row .btn-success:hover {
+    background: var(--success-hover);
+}
+
+.reader-tools-row .btn-success:disabled {
+    background: var(--reader-btn-bg);
+    color: var(--reader-muted);
+    border-color: var(--reader-btn-border);
 }
 
 .font-controls {
@@ -772,7 +825,7 @@ footer {
     top: 7.5rem; /* fallback: --top-nav-height (3.5rem) + reader-tools (~4rem) */
     z-index: 4;
     background: var(--reader-surface);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--reader-divider);
     padding: 0.5rem 1.25rem;
     display: flex;
     align-items: center;
@@ -794,7 +847,7 @@ footer {
     top: 10rem; /* fallback: toolbar top + toolbar height (~2.5rem) */
     z-index: 3;
     background: var(--reader-surface);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--reader-divider);
     padding: 0.4rem 1.25rem;
     display: flex;
     align-items: center;
@@ -827,7 +880,7 @@ footer {
 .edit-tool-sep {
     width: 1px;
     height: 1.2rem;
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--reader-divider);
     flex-shrink: 0;
     margin: 0 0.2rem;
 }

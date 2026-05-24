@@ -11,7 +11,7 @@ const readerConfig = {
         'chrome-extension://floidkamdcekmpimibhckjfegjpgeeda',
         'chrome-extension://ffjopfamcpefiadpmnaoonhidikfdkif'
     ],
-    defaultTheme: 'dark',
+    defaultTheme: 'light',
     defaultFontSize: 18
 };
 
@@ -452,15 +452,17 @@ function handleConvertSubmit() {
 }
 
 function toggleReaderTheme() {
-    const nextTheme = readerState.theme === 'dark' ? 'light' : 'dark';
-    setReaderTheme(nextTheme);
+    const cycle = { light: 'dark', dark: 'warm', warm: 'light' };
+    setReaderTheme(cycle[readerState.theme] || 'light');
 }
+
+const THEME_LABELS = { light: 'Light', dark: 'Dark', warm: 'Warm' };
 
 function setReaderTheme(theme) {
     readerState.theme = theme;
     document.body.setAttribute('data-theme', theme);
     if (elements.themeToggle) {
-        elements.themeToggle.textContent = theme === 'dark' ? 'Dark' : 'Light';
+        elements.themeToggle.textContent = THEME_LABELS[theme] || theme;
     }
 }
 
