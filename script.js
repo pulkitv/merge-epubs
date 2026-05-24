@@ -94,13 +94,10 @@ const elements = {
     editBtnFontColor: document.getElementById('editBtnFontColor'),
     editColorPicker: document.getElementById('editColorPicker'),
     editColorBar: document.getElementById('editColorBar'),
-    editBtnHighlight: document.getElementById('editBtnHighlight'),
-    editHlPopup: document.getElementById('editHlPopup'),
-    editHlSwatch: document.getElementById('editHlSwatch'),
     editHlPresets: document.querySelectorAll('.edit-hl-preset'),
     editHlRemove: document.getElementById('editHlRemove'),
     editHlCustom: document.getElementById('editHlCustom'),
-    editHighlightGroup: document.getElementById('editHighlightGroup'),
+    editHlCustomBar: document.getElementById('editHlCustomBar'),
     editFontSizeSelect: document.getElementById('editFontSizeSelect'),
     editBtnHr: document.getElementById('editBtnHr'),
     editBtnNote: document.getElementById('editBtnNote'),
@@ -1610,6 +1607,15 @@ function enterEditMode() {
     }
     if (elements.downloadEpubBtn) elements.downloadEpubBtn.disabled = true;
 
+    // Set exact sticky top values based on measured element heights
+    requestAnimationFrame(() => {
+        const navH = (document.querySelector('.top-nav') || {}).offsetHeight || 56;
+        const toolsH = (document.querySelector('.reader-tools-row') || {}).offsetHeight || 64;
+        const toolbarH = (elements.editToolbarRow || {}).offsetHeight || 40;
+        if (elements.editToolbarRow) elements.editToolbarRow.style.top = `${navH + toolsH}px`;
+        if (elements.editActionRow) elements.editActionRow.style.top = `${navH + toolsH + toolbarH}px`;
+    });
+
     updateToolbarState();
     if (elements.articleRoot) elements.articleRoot.focus();
 }
@@ -1640,8 +1646,8 @@ function exitEditMode(save) {
         }
     });
 
-    if (elements.editToolbarRow) elements.editToolbarRow.style.display = 'none';
-    if (elements.editActionRow) elements.editActionRow.style.display = 'none';
+    if (elements.editToolbarRow) { elements.editToolbarRow.style.display = 'none'; elements.editToolbarRow.style.top = ''; }
+    if (elements.editActionRow) { elements.editActionRow.style.display = 'none'; elements.editActionRow.style.top = ''; }
     if (elements.editToggleBtn) {
         elements.editToggleBtn.classList.remove('edit-active');
         elements.editToggleBtn.textContent = 'Edit';
@@ -1688,14 +1694,12 @@ function applyHighlight(color) {
     const applied = document.execCommand('hiliteColor', false, color);
     if (!applied) document.execCommand('backColor', false, color);
     editorState.currentHlColor = color;
-    if (elements.editHlSwatch) elements.editHlSwatch.style.background = color === 'transparent' ? '#fef08a' : color;
     // Mark the matching preset as selected
     if (elements.editHlPresets) {
         elements.editHlPresets.forEach((btn) => {
             btn.classList.toggle('edit-hl-selected', btn.dataset.color === color);
         });
     }
-    closeHighlightPopup();
     updateToolbarState();
 }
 
@@ -1731,15 +1735,6 @@ function updateToolbarState() {
     }
 }
 
-function openHighlightPopup() {
-    if (elements.editHlPopup) elements.editHlPopup.hidden = false;
-    if (elements.editBtnHighlight) elements.editBtnHighlight.setAttribute('aria-expanded', 'true');
-}
-
-function closeHighlightPopup() {
-    if (elements.editHlPopup) elements.editHlPopup.hidden = true;
-    if (elements.editBtnHighlight) elements.editBtnHighlight.setAttribute('aria-expanded', 'false');
-}
 
 // ─── Image Modal ─────────────────────────────────────────────────────────────
 
@@ -1914,41 +1909,26 @@ function setupEditEventListeners() {
         elements.editColorPicker.addEventListener('change', () => applyFontColor(elements.editColorPicker.value));
     }
 
-    // Highlight button + popup
-    if (elements.editBtnHighlight) {
-        elements.editBtnHighlight.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
-        elements.editBtnHighlight.addEventListener('click', () => {
-            if (elements.editHlPopup && elements.editHlPopup.hidden) {
-                openHighlightPopup();
-            } else {
-                closeHighlightPopup();
-            }
-        });
-    }
-
+    // Inline highlight swatches — always visible, no popup
     if (elements.editHlPresets) {
         elements.editHlPresets.forEach((btn) => {
-            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
             btn.addEventListener('click', () => applyHighlight(btn.dataset.color));
         });
     }
 
     if (elements.editHlRemove) {
-        elements.editHlRemove.addEventListener('mousedown', (e) => e.preventDefault());
+        elements.editHlRemove.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
         elements.editHlRemove.addEventListener('click', removeHighlight);
     }
 
     if (elements.editHlCustom) {
         elements.editHlCustom.addEventListener('mousedown', () => saveSelection());
+        elements.editHlCustom.addEventListener('input', () => {
+            if (elements.editHlCustomBar) elements.editHlCustomBar.style.background = elements.editHlCustom.value;
+        });
         elements.editHlCustom.addEventListener('change', () => applyHighlight(elements.editHlCustom.value));
     }
-
-    // Click outside closes highlight popup
-    document.addEventListener('click', (e) => {
-        if (elements.editHighlightGroup && !elements.editHighlightGroup.contains(e.target)) {
-            closeHighlightPopup();
-        }
-    });
 
     // HR / Note / Image / Link
     if (elements.editBtnHr) {

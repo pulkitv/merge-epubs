@@ -152,17 +152,19 @@
 
                         <div class="edit-tool-sep"></div>
 
-                        <div class="edit-tool-group edit-tool-group--highlight" id="editHighlightGroup">
-                            <button class="edit-btn edit-btn--hl" id="editBtnHighlight" type="button" title="Highlight" aria-haspopup="true" aria-expanded="false">
-                                <span class="edit-hl-swatch" id="editHlSwatch" style="background:#fef08a"></span> HL
-                            </button>
-                            <div class="edit-hl-popup" id="editHlPopup" hidden>
-                                <button class="edit-hl-preset" data-color="#fef08a" style="background:#fef08a" type="button" title="Yellow"></button>
-                                <button class="edit-hl-preset" data-color="#bbf7d0" style="background:#bbf7d0" type="button" title="Green"></button>
-                                <button class="edit-hl-preset" data-color="#fecdd3" style="background:#fecdd3" type="button" title="Pink"></button>
-                                <button class="edit-hl-preset" data-color="#bae6fd" style="background:#bae6fd" type="button" title="Blue"></button>
-                                <button class="edit-hl-remove" id="editHlRemove" type="button" title="Remove highlight">&#10005;</button>
-                                <input type="color" id="editHlCustom" class="edit-hl-custom" value="#fef08a" title="Custom highlight color" aria-label="Custom highlight color">
+                        <div class="edit-tool-group edit-tool-group--hl">
+                            <span class="edit-hl-label">HL</span>
+                            <button class="edit-hl-preset" data-color="#fef08a" style="background:#fef08a" type="button" title="Yellow highlight"></button>
+                            <button class="edit-hl-preset" data-color="#bbf7d0" style="background:#bbf7d0" type="button" title="Green highlight"></button>
+                            <button class="edit-hl-preset" data-color="#fecdd3" style="background:#fecdd3" type="button" title="Pink highlight"></button>
+                            <button class="edit-hl-preset" data-color="#bae6fd" style="background:#bae6fd" type="button" title="Blue highlight"></button>
+                            <button class="edit-btn edit-hl-remove" id="editHlRemove" type="button" title="Remove highlight">&#10005;</button>
+                            <div class="edit-color-wrap" title="Custom highlight color">
+                                <button class="edit-btn edit-btn--color" type="button" title="Custom highlight color">
+                                    <span class="edit-color-icon" style="font-size:0.65rem;font-weight:800">HL</span>
+                                    <span class="edit-color-bar" id="editHlCustomBar" style="background:#fef08a"></span>
+                                </button>
+                                <input type="color" id="editHlCustom" class="edit-color-picker" value="#fef08a" tabindex="-1" aria-label="Custom highlight color">
                             </div>
                         </div>
 

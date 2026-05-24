@@ -212,7 +212,7 @@ h2 {
 
 .reader-tools-row {
     position: sticky;
-    top: 0;
+    top: var(--top-nav-height);
     z-index: 5;
     background: var(--reader-surface);
     padding: 0.75rem 2rem;
@@ -766,8 +766,10 @@ footer {
     border-color: var(--primary-color);
 }
 
-/* Edit toolbar row */
+/* Edit toolbar row — sticky just below reader-tools-row; top set via JS in enterEditMode */
 .edit-toolbar-row {
+    position: sticky;
+    top: 7.5rem; /* fallback: --top-nav-height (3.5rem) + reader-tools (~4rem) */
     z-index: 4;
     background: var(--reader-surface);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -786,8 +788,11 @@ footer {
     display: none;
 }
 
-/* Save / Cancel action bar */
+/* Save / Cancel action bar — sticky just below toolbar row */
 .edit-action-row {
+    position: sticky;
+    top: 10rem; /* fallback: toolbar top + toolbar height (~2.5rem) */
+    z-index: 3;
     background: var(--reader-surface);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     padding: 0.4rem 1.25rem;
@@ -916,89 +921,49 @@ footer {
     color: var(--reader-text);
 }
 
-/* Highlight palette */
-.edit-tool-group--highlight {
-    position: relative;
-}
-
-.edit-btn--hl {
-    gap: 0.3rem;
-}
-
-.edit-hl-swatch {
-    display: inline-block;
-    width: 0.8rem;
-    height: 0.8rem;
-    border-radius: 2px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
+/* Inline highlight palette — swatches always visible in toolbar */
+.edit-tool-group--hl {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     flex-shrink: 0;
 }
 
-.edit-hl-popup {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    z-index: 20;
-    background: var(--reader-surface);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    padding: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.edit-hl-popup[hidden] {
-    display: none;
+.edit-hl-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--reader-muted);
+    padding: 0 0.15rem;
+    flex-shrink: 0;
+    user-select: none;
 }
 
 .edit-hl-preset {
-    width: 1.4rem;
-    height: 1.4rem;
-    border-radius: 4px;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 3px;
     border: 2px solid transparent;
     cursor: pointer;
     flex-shrink: 0;
     padding: 0;
-    transition: transform 0.1s;
+    transition: transform 0.12s, border-color 0.12s;
+    outline: none;
 }
 
 .edit-hl-preset:hover {
     transform: scale(1.2);
-    border-color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.55);
 }
 
 .edit-hl-preset.edit-hl-selected {
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
 }
 
 .edit-hl-remove {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    color: var(--reader-text);
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.4rem;
-    flex-shrink: 0;
-    line-height: 1.4;
-}
-
-.edit-hl-remove:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-/* Custom color input inside highlight palette — visible (not overlaid) */
-.edit-hl-custom {
-    width: 1.4rem;
-    height: 1.4rem;
-    cursor: pointer;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    padding: 0;
-    background: transparent;
-    flex-shrink: 0;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    min-width: unset;
 }
 
 /* Contenteditable active-field indicator */
