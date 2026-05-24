@@ -1441,10 +1441,28 @@ function sanitizeEpubHtml(html) {
 
 function injectEpubStyles(css) {
     removeEpubStyles();
-    if (!css.trim()) return;
     const style = document.createElement('style');
     style.id = 'epub-reader-styles';
-    style.textContent = scopeEpubCss(css, '#articleRoot');
+    // Scoped EPUB CSS, followed by layout overrides so EPUB body/html rules can't break
+    // reader centering (e.g. "body { margin: 0 }" scopes to "#articleRoot { margin: 0 }"
+    // which beats the class-level "margin: 0 auto" rule via ID specificity).
+    const scoped = css.trim() ? scopeEpubCss(css, '#articleRoot') : '';
+    style.textContent = scoped + `
+#articleRoot {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+    max-width: 900px !important;
+    float: none !important;
+    position: static !important;
+    box-sizing: border-box !important;
+}
+#articleRoot .epub-chapter {
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    box-sizing: border-box !important;
+}`;
     document.head.appendChild(style);
 }
 
@@ -1687,7 +1705,7 @@ function removeHighlight() {
 
 function insertNoteBlock() {
     restoreSelection();
-    document.execCommand('insertHTML', false, '<blockquote class="edit-note-block">Note...</blockquote>');
+    document.execCommand('insertHTML', false, '<hr /><blockquote class="edit-note-block">Note...</blockquote><hr />');
     updateToolbarState();
 }
 

@@ -1151,7 +1151,7 @@ footer {
 }
 
 .epub-chapter + .epub-chapter {
-    border-top: 1px solid var(--divider);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 2.5em;
 }
 
