@@ -223,6 +223,11 @@ h2 {
     border: 1px solid var(--border-color);
 }
 
+/* Reader view: cancel the nav's margin-bottom so toolbar is flush below nav */
+body[data-view="reader"] main {
+    margin-top: -1.5rem;
+}
+
 .reader-card {
     padding: 0;
     overflow: hidden;
@@ -244,6 +249,12 @@ h2 {
     align-items: center;
     justify-content: flex-start;
     gap: 1.5rem;
+}
+
+/* Status message lives as a flex item between toolbar and scroll area (never hidden by sticky toolbar) */
+#readerStatus {
+    flex-shrink: 0;
+    margin: 0.5rem 2rem 0;
 }
 
 .reader-scroll {

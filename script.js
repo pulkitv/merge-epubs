@@ -258,6 +258,7 @@ function setActiveView(view) {
     elements.mergeView.style.display = isReader || isConvert ? 'none' : 'block';
     elements.readerView.style.display = isReader ? 'block' : 'none';
     elements.convertView.style.display = isConvert ? 'block' : 'none';
+    document.body.dataset.view = view;
 
     elements.navLinks.forEach((link) => {
         link.classList.toggle('active', link.dataset.view === view);
