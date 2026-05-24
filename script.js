@@ -33,6 +33,16 @@ const authState = {
     idToken: null
 };
 
+const editorState = {
+    active: false,
+    savedRange: null,           // cloned Range restored before execCommand
+    snapshot: null,             // { html, title, byline } for Cancel rollback
+    currentHlColor: '#fef08a',
+    currentFontColor: '#ef4444',
+    pendingImageDataUri: null,  // data URI from FileReader upload
+    editingLink: null           // <a> element being edited (pre-populated link modal)
+};
+
 // DOM elements
 const elements = {
     apiUrlInput: document.getElementById('apiUrl'),
@@ -63,6 +73,8 @@ const elements = {
     themeToggle: document.getElementById('themeToggle'),
     fontButtons: document.querySelectorAll('.font-btn'),
     downloadEpubBtn: document.getElementById('downloadEpub'),
+    epubUploadBtn: document.getElementById('epubUploadBtn'),
+    epubUploadInput: document.getElementById('epubUploadInput'),
     convertInput: document.getElementById('convertInput'),
     convertSubmit: document.getElementById('convertSubmit'),
     convertTitle: document.getElementById('convertTitle'),
@@ -71,7 +83,48 @@ const elements = {
     logoutBtn: document.getElementById('logoutBtn'),
     authProfile: document.getElementById('authProfile'),
     authAvatar: document.getElementById('authAvatar'),
-    authName: document.getElementById('authName')
+    authName: document.getElementById('authName'),
+    // Edit mode
+    editToggleBtn: document.getElementById('editToggleBtn'),
+    editToolbarRow: document.getElementById('editToolbarRow'),
+    editActionRow: document.getElementById('editActionRow'),
+    editSaveBtn: document.getElementById('editSaveBtn'),
+    editCancelBtn: document.getElementById('editCancelBtn'),
+    editCmdButtons: document.querySelectorAll('#editToolbarRow .edit-btn[data-cmd]'),
+    editBtnFontColor: document.getElementById('editBtnFontColor'),
+    editColorPicker: document.getElementById('editColorPicker'),
+    editColorBar: document.getElementById('editColorBar'),
+    editBtnHighlight: document.getElementById('editBtnHighlight'),
+    editHlPopup: document.getElementById('editHlPopup'),
+    editHlSwatch: document.getElementById('editHlSwatch'),
+    editHlPresets: document.querySelectorAll('.edit-hl-preset'),
+    editHlRemove: document.getElementById('editHlRemove'),
+    editHlCustom: document.getElementById('editHlCustom'),
+    editHighlightGroup: document.getElementById('editHighlightGroup'),
+    editFontSizeSelect: document.getElementById('editFontSizeSelect'),
+    editBtnHr: document.getElementById('editBtnHr'),
+    editBtnNote: document.getElementById('editBtnNote'),
+    editBtnImage: document.getElementById('editBtnImage'),
+    editBtnLink: document.getElementById('editBtnLink'),
+    // Image modal
+    editImageModal: document.getElementById('editImageModal'),
+    editImgTabUrl: document.getElementById('editImgTabUrl'),
+    editImgTabFile: document.getElementById('editImgTabFile'),
+    editImgPanelUrl: document.getElementById('editImgPanelUrl'),
+    editImgPanelFile: document.getElementById('editImgPanelFile'),
+    editImgUrlInput: document.getElementById('editImgUrlInput'),
+    editImgAltUrl: document.getElementById('editImgAltUrl'),
+    editImgFileInput: document.getElementById('editImgFileInput'),
+    editImgAltFile: document.getElementById('editImgAltFile'),
+    editImgPreview: document.getElementById('editImgPreview'),
+    editImgInsertBtn: document.getElementById('editImgInsertBtn'),
+    editImgCancelBtn: document.getElementById('editImgCancelBtn'),
+    // Link modal
+    editLinkModal: document.getElementById('editLinkModal'),
+    editLinkText: document.getElementById('editLinkText'),
+    editLinkUrl: document.getElementById('editLinkUrl'),
+    editLinkInsertBtn: document.getElementById('editLinkInsertBtn'),
+    editLinkCancelBtn: document.getElementById('editLinkCancelBtn')
 };
 
 // Initialize
@@ -125,6 +178,18 @@ function setupEventListeners() {
         });
     });
 
+    // EPUB upload (open in reader)
+    if (elements.epubUploadBtn) {
+        elements.epubUploadBtn.addEventListener('click', () => elements.epubUploadInput.click());
+    }
+    if (elements.epubUploadInput) {
+        elements.epubUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (file) parseAndLoadEpub(file);
+            elements.epubUploadInput.value = '';
+        });
+    }
+
     // Download EPUB
     if (elements.downloadEpubBtn) {
         elements.downloadEpubBtn.addEventListener('click', downloadAsEpub);
@@ -158,6 +223,8 @@ function setupEventListeners() {
     if (elements.convertSubmit) {
         elements.convertSubmit.addEventListener('click', handleConvertSubmit);
     }
+
+    setupEditEventListeners();
 }
 
 function setupRouting() {
@@ -454,20 +521,35 @@ function renderReaderContent(payload) {
         elements.readerSource.textContent = payload.siteName ? `Source: ${payload.siteName}` : 'Open source';
     }
 
-    const sanitizedHtml = sanitizeArticleHtml(payload.html || '', sourceUrl);
+    let renderedHtml;
+    if (payload.isEpub) {
+        // EPUB content is pre-processed (images → data URIs, scripts stripped)
+        // Only strip event handlers; preserve inline styles for fidelity
+        renderedHtml = sanitizeEpubHtml(payload.html || '');
+        if (elements.readerSource) elements.readerSource.style.display = 'none';
+    } else {
+        renderedHtml = sanitizeArticleHtml(payload.html || '', sourceUrl);
+        if (elements.readerSource) elements.readerSource.style.display = '';
+        removeEpubStyles();
+    }
+
     if (elements.articleRoot) {
-        elements.articleRoot.innerHTML = sanitizedHtml;
+        elements.articleRoot.innerHTML = renderedHtml;
     }
 
     // Store payload for EPUB download
     readerState.currentArticle = payload;
-    
+
     // Enable download button
     if (elements.downloadEpubBtn) {
         elements.downloadEpubBtn.disabled = false;
     }
 
     setReaderStatus('Content loaded successfully.', 'success');
+
+    // Enable edit button; exit any active edit session cleanly
+    if (elements.editToggleBtn) elements.editToggleBtn.disabled = false;
+    if (editorState.active) exitEditMode(false);
 }
 
 function convertPlainTextToHtml(text) {
@@ -623,6 +705,26 @@ async function downloadAsEpub() {
 
         for (const img of images) {
             const imgSrc = img.getAttribute('src');
+            if (imgSrc && imgSrc.startsWith('data:')) {
+                try {
+                    // Parse data URI: data:<mime>;base64,<data>
+                    const [header, b64data] = imgSrc.split(',', 2);
+                    const mime = header.replace('data:', '').replace(';base64', '') || 'image/png';
+                    const ext = mime.split('/')[1] || 'png';
+                    const byteChars = atob(b64data);
+                    const byteArr = new Uint8Array(byteChars.length);
+                    for (let j = 0; j < byteChars.length; j++) byteArr[j] = byteChars.charCodeAt(j);
+                    const blob = new Blob([byteArr], { type: mime });
+                    const imgFilename = `images/img${imageIndex}.${ext}`;
+                    zip.file(`OEBPS/${imgFilename}`, blob);
+                    imageManifest.push({ id: `img${imageIndex}`, href: imgFilename, type: mime });
+                    img.setAttribute('src', imgFilename);
+                    imageIndex++;
+                } catch (error) {
+                    console.warn('Failed to embed data URI image:', error);
+                }
+                continue;
+            }
             if (imgSrc && (imgSrc.startsWith('http://') || imgSrc.startsWith('https://'))) {
                 try {
                     const response = await fetch(imgSrc);
@@ -730,26 +832,46 @@ function generateUuid() {
     });
 }
 
+function sanitizeInlineStyle(styleValue) {
+    if (!styleValue) return '';
+    const dangerous = /expression\s*\(|javascript\s*:|url\s*\(/i;
+    if (dangerous.test(styleValue)) return '';
+    const allowed = new Set(['color', 'background-color', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'text-align', 'font-family']);
+    const safe = styleValue.split(';')
+        .map((s) => s.trim()).filter(Boolean)
+        .filter((pair) => {
+            const [prop, ...rest] = pair.split(':');
+            const val = rest.join(':').trim();
+            return allowed.has(prop.trim().toLowerCase()) && !dangerous.test(val);
+        });
+    return safe.join('; ');
+}
+
 function convertToXhtml(html) {
     if (!html) return '';
-    
+
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    
+
     // Remove problematic elements
     const removeElements = doc.querySelectorAll('script, style, iframe, object, embed');
     removeElements.forEach(el => el.remove());
-    
+
     // Clean up all elements - remove invalid attributes
     doc.querySelectorAll('*').forEach(el => {
-        // Remove event handlers and data attributes
         const attrsToRemove = [];
         for (let i = 0; i < el.attributes.length; i++) {
             const attr = el.attributes[i];
             const name = attr.name.toLowerCase();
-            
-            // Remove event handlers, style, and problematic attributes
-            if (name.startsWith('on') || name === 'style' || name.startsWith('data-') || 
+
+            if (name === 'style') {
+                const sanitized = sanitizeInlineStyle(attr.value);
+                if (sanitized) {
+                    attr.value = sanitized;
+                } else {
+                    attrsToRemove.push(attr.name);
+                }
+            } else if (name.startsWith('on') || name.startsWith('data-') ||
                 name.includes(':') || !name.match(/^[a-z][a-z0-9-]*$/i)) {
                 attrsToRemove.push(attr.name);
             }
@@ -1088,10 +1210,795 @@ function showError(message) {
 // Format file size
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+// ─── EPUB Reader ─────────────────────────────────────────────────────────────
+
+async function parseAndLoadEpub(file) {
+    setReaderStatus('Loading EPUB…', 'success');
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(arrayBuffer);
+
+        // Locate OPF via META-INF/container.xml
+        const containerFile = zip.file('META-INF/container.xml');
+        if (!containerFile) throw new Error('Missing META-INF/container.xml');
+        const opfPath = parseContainerXml(await containerFile.async('text'));
+        if (!opfPath) throw new Error('Cannot locate OPF file');
+
+        const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+        const opfFile = resolveZipFile(zip, opfPath);
+        if (!opfFile) throw new Error('OPF not found: ' + opfPath);
+        const { title, author, manifest, spineOrder } = parseOpfXml(await opfFile.async('text'), opfDir);
+
+        // Build asset map: images + fonts → data URIs
+        const assetMap = {};
+        const imageMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'];
+        const fontMimeTypes = ['font/woff', 'font/woff2', 'font/ttf', 'font/otf', 'application/font-woff',
+                               'application/x-font-ttf', 'application/x-font-opentype', 'application/vnd.ms-fontobject'];
+
+        for (const item of Object.values(manifest)) {
+            if (!imageMimeTypes.includes(item.mediaType) && !fontMimeTypes.includes(item.mediaType)) continue;
+            const f = resolveZipFile(zip, item.fullPath);
+            if (!f) continue;
+            const b64 = await f.async('base64');
+            const dataUri = `data:${item.mediaType};base64,${b64}`;
+            assetMap[item.fullPath] = dataUri;
+            assetMap[item.href] = dataUri;
+            // Also index by bare filename for resilient resolution
+            const fname = item.href.split('/').pop();
+            if (!assetMap[fname]) assetMap[fname] = dataUri;
+        }
+
+        // Extract and accumulate CSS (external files from manifest)
+        let allCss = '';
+        for (const item of Object.values(manifest)) {
+            if (item.mediaType !== 'text/css') continue;
+            const f = resolveZipFile(zip, item.fullPath);
+            if (!f) continue;
+            const cssDir = item.fullPath.includes('/') ? item.fullPath.substring(0, item.fullPath.lastIndexOf('/') + 1) : '';
+            allCss += resolveEpubCssUrls(await f.async('text'), cssDir, assetMap) + '\n';
+        }
+
+        // Extract HTML body content in spine order
+        let combinedHtml = '';
+        for (const idref of spineOrder) {
+            const item = manifest[idref];
+            if (!item) continue;
+            const mt = item.mediaType || '';
+            if (!mt.includes('html') && !mt.includes('xhtml') && !item.fullPath.match(/\.(x?html?)$/i)) continue;
+            const f = resolveZipFile(zip, item.fullPath);
+            if (!f) continue;
+            const fileDir = item.fullPath.includes('/') ? item.fullPath.substring(0, item.fullPath.lastIndexOf('/') + 1) : '';
+            const { html: chapterHtml, css: chapterCss } = extractEpubChapter(await f.async('text'), fileDir, assetMap);
+            if (chapterCss) allCss += chapterCss + '\n';
+            if (chapterHtml) combinedHtml += `<div class="epub-chapter">${chapterHtml}</div>\n`;
+        }
+
+        injectEpubStyles(allCss);
+
+        const payload = {
+            title: title || file.name.replace(/\.epub$/i, ''),
+            byline: author || '',
+            siteName: '',
+            sourceUrl: '',
+            html: combinedHtml,
+            isEpub: true
+        };
+
+        if (window.location.hash !== '#/reader') window.location.hash = '#/reader';
+        renderReaderContent(payload);
+
+    } catch (err) {
+        console.error('EPUB parse error:', err);
+        setReaderStatus('Failed to load EPUB: ' + err.message, 'error');
+    }
+}
+
+function parseContainerXml(xml) {
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const rootfile = doc.querySelector('rootfile');
+    return rootfile ? rootfile.getAttribute('full-path') : null;
+}
+
+function parseOpfXml(xml, opfDir) {
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+
+    // Metadata (try both namespaced and plain queries)
+    const titleEl = doc.querySelector('metadata title') || doc.querySelector('title');
+    const authorEl = doc.querySelector('metadata creator') || doc.querySelector('creator');
+    const title = titleEl ? titleEl.textContent.trim() : '';
+    const author = authorEl ? authorEl.textContent.trim() : '';
+
+    // Manifest: id → { id, href, mediaType, fullPath }
+    const manifest = {};
+    doc.querySelectorAll('manifest item').forEach((item) => {
+        const id = item.getAttribute('id');
+        const href = decodeURIComponent(item.getAttribute('href') || '');
+        const mediaType = item.getAttribute('media-type') || '';
+        if (id && href) {
+            manifest[id] = { id, href, mediaType, fullPath: opfDir + href };
+        }
+    });
+
+    // Spine reading order
+    const spineOrder = [];
+    doc.querySelectorAll('spine itemref').forEach((itemref) => {
+        const idref = itemref.getAttribute('idref');
+        if (idref) spineOrder.push(idref);
+    });
+
+    return { title, author, manifest, spineOrder };
+}
+
+function resolveZipFile(zip, path) {
+    // Try the exact path, then without leading ./, then URL-decoded
+    const normalised = path.replace(/\\/g, '/').replace(/^\.\//, '');
+    return zip.file(normalised) || zip.file(decodeURIComponent(normalised)) || null;
+}
+
+function resolveRelativePath(baseDir, relativePath) {
+    const parts = (baseDir + relativePath).split('/');
+    const out = [];
+    for (const p of parts) {
+        if (p === '..') out.pop();
+        else if (p !== '.') out.push(p);
+    }
+    return out.join('/');
+}
+
+function resolveEpubCssUrls(css, cssDir, assetMap) {
+    return css.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/gi, (match, _q, val) => {
+        if (val.startsWith('data:') || val.startsWith('http')) return match;
+        const decoded = decodeURIComponent(val);
+        const resolved = resolveRelativePath(cssDir, decoded);
+        const dataUri = assetMap[resolved] || assetMap[decoded] || assetMap[decoded.split('/').pop()];
+        return dataUri ? `url("${dataUri}")` : match;
+    });
+}
+
+function extractEpubChapter(xhtmlText, fileDir, assetMap) {
+    // Parse as XHTML first, fall back to HTML
+    let doc = new DOMParser().parseFromString(xhtmlText, 'application/xhtml+xml');
+    if (doc.querySelector('parsererror')) {
+        doc = new DOMParser().parseFromString(xhtmlText, 'text/html');
+    }
+
+    // Collect inline <style> from <head>
+    let css = '';
+    doc.querySelectorAll('head style').forEach((s) => {
+        css += resolveEpubCssUrls(s.textContent, fileDir, assetMap) + '\n';
+    });
+
+    // Remove dangerous elements
+    doc.querySelectorAll('script, iframe, object, embed, form, input, button, link, meta').forEach((el) => el.remove());
+
+    // Strip event handlers; keep style attributes
+    doc.querySelectorAll('*').forEach((el) => {
+        [...el.attributes].forEach((attr) => {
+            const n = attr.name.toLowerCase();
+            if (n.startsWith('on')) el.removeAttribute(attr.name);
+            if ((n === 'href' || n === 'src') && attr.value.trim().toLowerCase().startsWith('javascript:')) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
+
+    // Resolve image src → data URI
+    doc.querySelectorAll('img').forEach((img) => {
+        const src = img.getAttribute('src');
+        if (!src || src.startsWith('data:')) return;
+        const decoded = decodeURIComponent(src);
+        const resolved = resolveRelativePath(fileDir, decoded);
+        const dataUri = assetMap[resolved] || assetMap[decoded] || assetMap[decoded.split('/').pop()];
+        if (dataUri) img.setAttribute('src', dataUri);
+    });
+
+    // Resolve SVG <image href> / xlink:href
+    doc.querySelectorAll('image').forEach((img) => {
+        const href = img.getAttribute('href') || img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+        if (!href || href.startsWith('data:')) return;
+        const resolved = resolveRelativePath(fileDir, decodeURIComponent(href));
+        const dataUri = assetMap[resolved] || assetMap[href];
+        if (dataUri) {
+            img.setAttribute('href', dataUri);
+            img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', dataUri);
+        }
+    });
+
+    // Resolve inline style background-image url() references
+    doc.querySelectorAll('[style]').forEach((el) => {
+        const original = el.getAttribute('style');
+        const patched = resolveEpubCssUrls(original, fileDir, assetMap);
+        if (patched !== original) el.setAttribute('style', patched);
+    });
+
+    const body = doc.querySelector('body');
+    return { html: body ? body.innerHTML : '', css };
+}
+
+function sanitizeEpubHtml(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script, iframe, object, embed, form').forEach((el) => el.remove());
+    doc.querySelectorAll('*').forEach((el) => {
+        [...el.attributes].forEach((attr) => {
+            const n = attr.name.toLowerCase();
+            if (n.startsWith('on')) el.removeAttribute(attr.name);
+            if ((n === 'href' || n === 'src') && attr.value.trim().toLowerCase().startsWith('javascript:')) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
+    return doc.body.innerHTML;
+}
+
+function injectEpubStyles(css) {
+    removeEpubStyles();
+    if (!css.trim()) return;
+    const style = document.createElement('style');
+    style.id = 'epub-reader-styles';
+    style.textContent = scopeEpubCss(css, '#articleRoot');
+    document.head.appendChild(style);
+}
+
+function removeEpubStyles() {
+    const el = document.getElementById('epub-reader-styles');
+    if (el) el.remove();
+}
+
+function scopeEpubCss(css, scope) {
+    css = css.replace(/\/\*[\s\S]*?\*\//g, ''); // strip comments
+    const result = [];
+    let i = 0;
+
+    while (i < css.length) {
+        while (i < css.length && /\s/.test(css[i])) i++;
+        if (i >= css.length) break;
+
+        if (css[i] === '@') {
+            const atMatch = css.substring(i).match(/^@([\w-]+)/);
+            const atName = (atMatch ? atMatch[1] : '').toLowerCase();
+
+            if (['font-face', 'page', 'charset', 'import', 'namespace'].includes(atName)) {
+                // Global @-rules: keep unchanged
+                const end = findCssRuleEnd(css, i);
+                result.push(css.substring(i, end).trim());
+                i = end;
+            } else if (['media', 'supports'].includes(atName)) {
+                // Scope selectors inside the block
+                const braceIdx = css.indexOf('{', i);
+                if (braceIdx === -1) break;
+                const header = css.substring(i, braceIdx + 1);
+                i = braceIdx + 1;
+                let depth = 1;
+                const contentStart = i;
+                while (i < css.length && depth > 0) {
+                    if (css[i] === '{') depth++;
+                    else if (css[i] === '}') depth--;
+                    i++;
+                }
+                const inner = css.substring(contentStart, i - 1);
+                result.push(`${header}\n${scopeEpubCss(inner, scope)}\n}`);
+            } else {
+                // @keyframes and others: keep inner content as-is
+                const braceIdx = css.indexOf('{', i);
+                if (braceIdx === -1) break;
+                const header = css.substring(i, braceIdx + 1);
+                i = braceIdx + 1;
+                let depth = 1;
+                const contentStart = i;
+                while (i < css.length && depth > 0) {
+                    if (css[i] === '{') depth++;
+                    else if (css[i] === '}') depth--;
+                    i++;
+                }
+                result.push(`${header}\n${css.substring(contentStart, i - 1)}\n}`);
+            }
+        } else {
+            const braceIdx = css.indexOf('{', i);
+            if (braceIdx === -1) break;
+            const closeBrace = css.indexOf('}', braceIdx);
+            if (closeBrace === -1) break;
+
+            const selectorText = css.substring(i, braceIdx).trim();
+            const declarations = css.substring(braceIdx, closeBrace + 1);
+
+            if (selectorText) {
+                const scoped = selectorText.split(',').map((sel) => {
+                    sel = sel.trim();
+                    if (!sel) return '';
+                    if (sel === 'html' || sel === 'body' || sel === ':root') return scope;
+                    if (/^(html|body)\s/.test(sel)) return scope + ' ' + sel.replace(/^(html|body)\s+/, '');
+                    return `${scope} ${sel}`;
+                }).filter(Boolean).join(', ');
+                if (scoped) result.push(`${scoped} ${declarations}`);
+            }
+
+            i = closeBrace + 1;
+        }
+    }
+
+    return result.join('\n');
+}
+
+function findCssRuleEnd(css, start) {
+    let i = start;
+    while (i < css.length) {
+        if (css[i] === ';') return i + 1;
+        if (css[i] === '{') {
+            let depth = 0;
+            while (i < css.length) {
+                if (css[i] === '{') depth++;
+                else if (css[i] === '}') { depth--; if (depth === 0) return i + 1; }
+                i++;
+            }
+            return i;
+        }
+        i++;
+    }
+    return i;
+}
+
+// ─── Edit Mode ───────────────────────────────────────────────────────────────
+
+function saveSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+        editorState.savedRange = sel.getRangeAt(0).cloneRange();
+    }
+}
+
+function restoreSelection() {
+    if (!editorState.savedRange) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(editorState.savedRange);
+}
+
+function enterEditMode() {
+    if (editorState.active) return;
+    editorState.active = true;
+
+    // Snapshot for Cancel rollback
+    editorState.snapshot = {
+        html: elements.articleRoot ? elements.articleRoot.innerHTML : '',
+        title: elements.readerTitle ? elements.readerTitle.textContent : '',
+        byline: elements.readerByline ? elements.readerByline.textContent : ''
+    };
+
+    // styleWithCSS must come first so browser produces <span style="...">
+    document.execCommand('styleWithCSS', false, true);
+
+    // Enable contenteditable on the three editable regions
+    [elements.articleRoot, elements.readerTitle, elements.readerByline].forEach((el) => {
+        if (el) {
+            el.setAttribute('contenteditable', 'true');
+            el.classList.add('edit-active-field');
+        }
+    });
+
+    if (elements.editToolbarRow) elements.editToolbarRow.style.display = 'flex';
+    if (elements.editActionRow) elements.editActionRow.style.display = 'flex';
+    if (elements.editToggleBtn) {
+        elements.editToggleBtn.classList.add('edit-active');
+        elements.editToggleBtn.textContent = 'Editing';
+    }
+    if (elements.downloadEpubBtn) elements.downloadEpubBtn.disabled = true;
+
+    updateToolbarState();
+    if (elements.articleRoot) elements.articleRoot.focus();
+}
+
+function exitEditMode(save) {
+    if (!editorState.active) return;
+
+    if (save) {
+        // Commit edits back into currentArticle
+        if (readerState.currentArticle) {
+            readerState.currentArticle.html = elements.articleRoot ? elements.articleRoot.innerHTML : readerState.currentArticle.html;
+            readerState.currentArticle.title = elements.readerTitle ? elements.readerTitle.textContent : readerState.currentArticle.title;
+            readerState.currentArticle.byline = elements.readerByline ? elements.readerByline.textContent : readerState.currentArticle.byline;
+        }
+    } else {
+        // Roll back to snapshot
+        if (editorState.snapshot) {
+            if (elements.articleRoot) elements.articleRoot.innerHTML = editorState.snapshot.html;
+            if (elements.readerTitle) elements.readerTitle.textContent = editorState.snapshot.title;
+            if (elements.readerByline) elements.readerByline.textContent = editorState.snapshot.byline;
+        }
+    }
+
+    [elements.articleRoot, elements.readerTitle, elements.readerByline].forEach((el) => {
+        if (el) {
+            el.removeAttribute('contenteditable');
+            el.classList.remove('edit-active-field');
+        }
+    });
+
+    if (elements.editToolbarRow) elements.editToolbarRow.style.display = 'none';
+    if (elements.editActionRow) elements.editActionRow.style.display = 'none';
+    if (elements.editToggleBtn) {
+        elements.editToggleBtn.classList.remove('edit-active');
+        elements.editToggleBtn.textContent = 'Edit';
+    }
+    if (elements.downloadEpubBtn) elements.downloadEpubBtn.disabled = false;
+
+    editorState.active = false;
+    editorState.savedRange = null;
+    editorState.snapshot = null;
+}
+
+function execFormat(command, value) {
+    restoreSelection();
+    document.execCommand(command, false, value || null);
+    updateToolbarState();
+}
+
+function applyFontSize(px) {
+    restoreSelection();
+    document.execCommand('fontSize', false, '7');
+    // Replace browser's <font size="7"> with a proper <span style="font-size:Xpx">
+    if (elements.articleRoot) {
+        elements.articleRoot.querySelectorAll('font[size="7"]').forEach((fontEl) => {
+            const span = document.createElement('span');
+            span.style.fontSize = `${px}px`;
+            span.innerHTML = fontEl.innerHTML;
+            fontEl.replaceWith(span);
+        });
+    }
+    updateToolbarState();
+}
+
+function applyFontColor(color) {
+    restoreSelection();
+    document.execCommand('foreColor', false, color);
+    editorState.currentFontColor = color;
+    if (elements.editColorBar) elements.editColorBar.style.background = color;
+    updateToolbarState();
+}
+
+function applyHighlight(color) {
+    restoreSelection();
+    // hiliteColor is standard; backColor is the IE/legacy fallback
+    const applied = document.execCommand('hiliteColor', false, color);
+    if (!applied) document.execCommand('backColor', false, color);
+    editorState.currentHlColor = color;
+    if (elements.editHlSwatch) elements.editHlSwatch.style.background = color === 'transparent' ? '#fef08a' : color;
+    // Mark the matching preset as selected
+    if (elements.editHlPresets) {
+        elements.editHlPresets.forEach((btn) => {
+            btn.classList.toggle('edit-hl-selected', btn.dataset.color === color);
+        });
+    }
+    closeHighlightPopup();
+    updateToolbarState();
+}
+
+function removeHighlight() {
+    applyHighlight('transparent');
+}
+
+function insertNoteBlock() {
+    restoreSelection();
+    document.execCommand('insertHTML', false, '<blockquote class="edit-note-block">Note...</blockquote>');
+    updateToolbarState();
+}
+
+function insertHorizontalRule() {
+    restoreSelection();
+    document.execCommand('insertHorizontalRule');
+    updateToolbarState();
+}
+
+function updateToolbarState() {
+    const stateCmds = ['bold', 'italic', 'underline', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull', 'insertUnorderedList', 'insertOrderedList'];
+    if (elements.editCmdButtons) {
+        elements.editCmdButtons.forEach((btn) => {
+            const cmd = btn.dataset.cmd;
+            if (stateCmds.includes(cmd)) {
+                try {
+                    btn.classList.toggle('edit-btn--on', document.queryCommandState(cmd));
+                } catch (e) {
+                    // ignore
+                }
+            }
+        });
+    }
+}
+
+function openHighlightPopup() {
+    if (elements.editHlPopup) elements.editHlPopup.hidden = false;
+    if (elements.editBtnHighlight) elements.editBtnHighlight.setAttribute('aria-expanded', 'true');
+}
+
+function closeHighlightPopup() {
+    if (elements.editHlPopup) elements.editHlPopup.hidden = true;
+    if (elements.editBtnHighlight) elements.editBtnHighlight.setAttribute('aria-expanded', 'false');
+}
+
+// ─── Image Modal ─────────────────────────────────────────────────────────────
+
+function openImageModal() {
+    saveSelection();
+    if (elements.editImgUrlInput) elements.editImgUrlInput.value = '';
+    if (elements.editImgAltUrl) elements.editImgAltUrl.value = '';
+    if (elements.editImgFileInput) elements.editImgFileInput.value = '';
+    if (elements.editImgAltFile) elements.editImgAltFile.value = '';
+    if (elements.editImgPreview) { elements.editImgPreview.innerHTML = ''; elements.editImgPreview.hidden = true; }
+    editorState.pendingImageDataUri = null;
+    switchImageTab('url');
+    if (elements.editImageModal) elements.editImageModal.hidden = false;
+}
+
+function closeImageModal() {
+    if (elements.editImageModal) elements.editImageModal.hidden = true;
+    editorState.pendingImageDataUri = null;
+}
+
+function switchImageTab(tab) {
+    const isUrl = tab === 'url';
+    if (elements.editImgTabUrl) {
+        elements.editImgTabUrl.classList.toggle('edit-modal-tab--active', isUrl);
+        elements.editImgTabUrl.setAttribute('aria-selected', String(isUrl));
+    }
+    if (elements.editImgTabFile) {
+        elements.editImgTabFile.classList.toggle('edit-modal-tab--active', !isUrl);
+        elements.editImgTabFile.setAttribute('aria-selected', String(!isUrl));
+    }
+    if (elements.editImgPanelUrl) elements.editImgPanelUrl.hidden = !isUrl;
+    if (elements.editImgPanelFile) elements.editImgPanelFile.hidden = isUrl;
+}
+
+function handleImageFileSelect(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        editorState.pendingImageDataUri = ev.target.result;
+        if (elements.editImgPreview) {
+            elements.editImgPreview.innerHTML = `<img src="${ev.target.result}" alt="preview" style="max-width:100%;max-height:160px;">`;
+            elements.editImgPreview.hidden = false;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function insertImage() {
+    const isUrlTab = elements.editImgPanelUrl && !elements.editImgPanelUrl.hidden;
+    let imgHtml = '';
+
+    if (isUrlTab) {
+        const src = (elements.editImgUrlInput && elements.editImgUrlInput.value.trim()) || '';
+        const alt = (elements.editImgAltUrl && elements.editImgAltUrl.value.trim()) || '';
+        if (!src) { closeImageModal(); return; }
+        imgHtml = `<img src="${src.replace(/"/g, '&quot;')}" alt="${alt.replace(/"/g, '&quot;')}" style="max-width:100%" />`;
+    } else {
+        if (!editorState.pendingImageDataUri) { closeImageModal(); return; }
+        const alt = (elements.editImgAltFile && elements.editImgAltFile.value.trim()) || '';
+        imgHtml = `<img src="${editorState.pendingImageDataUri}" alt="${alt.replace(/"/g, '&quot;')}" style="max-width:100%" />`;
+    }
+
+    restoreSelection();
+    document.execCommand('insertHTML', false, imgHtml);
+    closeImageModal();
+    updateToolbarState();
+}
+
+// ─── Link Modal ───────────────────────────────────────────────────────────────
+
+function openLinkModal() {
+    saveSelection();
+    editorState.editingLink = null;
+
+    // Check if cursor is inside an <a>
+    const sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+        let node = sel.anchorNode;
+        while (node && node !== elements.articleRoot) {
+            if (node.nodeName === 'A') {
+                editorState.editingLink = node;
+                break;
+            }
+            node = node.parentElement;
+        }
+    }
+
+    if (editorState.editingLink) {
+        if (elements.editLinkUrl) elements.editLinkUrl.value = editorState.editingLink.href || '';
+        if (elements.editLinkText) elements.editLinkText.value = editorState.editingLink.textContent || '';
+    } else {
+        if (elements.editLinkUrl) elements.editLinkUrl.value = '';
+        if (elements.editLinkText) elements.editLinkText.value = sel ? sel.toString() : '';
+    }
+
+    if (elements.editLinkModal) elements.editLinkModal.hidden = false;
+    if (elements.editLinkUrl) elements.editLinkUrl.focus();
+}
+
+function closeLinkModal() {
+    if (elements.editLinkModal) elements.editLinkModal.hidden = true;
+    editorState.editingLink = null;
+}
+
+function insertLink() {
+    const url = (elements.editLinkUrl && elements.editLinkUrl.value.trim()) || '';
+    if (!url) { closeLinkModal(); return; }
+    const text = (elements.editLinkText && elements.editLinkText.value.trim()) || url;
+
+    if (editorState.editingLink) {
+        editorState.editingLink.href = url;
+        editorState.editingLink.textContent = text;
+    } else {
+        restoreSelection();
+        const linkHtml = `<a href="${url.replace(/"/g, '&quot;')}" target="_blank" rel="noopener">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</a>`;
+        document.execCommand('insertHTML', false, linkHtml);
+    }
+
+    closeLinkModal();
+    updateToolbarState();
+}
+
+// ─── Edit Event Wiring ────────────────────────────────────────────────────────
+
+function setupEditEventListeners() {
+    // Edit toggle
+    if (elements.editToggleBtn) {
+        elements.editToggleBtn.addEventListener('click', () => {
+            if (editorState.active) {
+                exitEditMode(false);
+            } else {
+                enterEditMode();
+            }
+        });
+    }
+
+    // Save / Cancel
+    if (elements.editSaveBtn) elements.editSaveBtn.addEventListener('click', () => exitEditMode(true));
+    if (elements.editCancelBtn) elements.editCancelBtn.addEventListener('click', () => exitEditMode(false));
+
+    // data-cmd formatting buttons
+    if (elements.editCmdButtons) {
+        elements.editCmdButtons.forEach((btn) => {
+            btn.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+            btn.addEventListener('click', () => execFormat(btn.dataset.cmd));
+        });
+    }
+
+    // Font size select
+    if (elements.editFontSizeSelect) {
+        elements.editFontSizeSelect.addEventListener('mousedown', () => saveSelection());
+        elements.editFontSizeSelect.addEventListener('change', () => {
+            const px = parseInt(elements.editFontSizeSelect.value, 10);
+            if (px) applyFontSize(px);
+            elements.editFontSizeSelect.value = '';
+        });
+    }
+
+    // Font color picker
+    if (elements.editBtnFontColor) {
+        elements.editBtnFontColor.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+        elements.editBtnFontColor.addEventListener('click', () => {
+            if (elements.editColorPicker) elements.editColorPicker.click();
+        });
+    }
+    if (elements.editColorPicker) {
+        elements.editColorPicker.addEventListener('mousedown', () => saveSelection());
+        elements.editColorPicker.addEventListener('input', () => {
+            if (elements.editColorBar) elements.editColorBar.style.background = elements.editColorPicker.value;
+        });
+        elements.editColorPicker.addEventListener('change', () => applyFontColor(elements.editColorPicker.value));
+    }
+
+    // Highlight button + popup
+    if (elements.editBtnHighlight) {
+        elements.editBtnHighlight.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+        elements.editBtnHighlight.addEventListener('click', () => {
+            if (elements.editHlPopup && elements.editHlPopup.hidden) {
+                openHighlightPopup();
+            } else {
+                closeHighlightPopup();
+            }
+        });
+    }
+
+    if (elements.editHlPresets) {
+        elements.editHlPresets.forEach((btn) => {
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', () => applyHighlight(btn.dataset.color));
+        });
+    }
+
+    if (elements.editHlRemove) {
+        elements.editHlRemove.addEventListener('mousedown', (e) => e.preventDefault());
+        elements.editHlRemove.addEventListener('click', removeHighlight);
+    }
+
+    if (elements.editHlCustom) {
+        elements.editHlCustom.addEventListener('mousedown', () => saveSelection());
+        elements.editHlCustom.addEventListener('change', () => applyHighlight(elements.editHlCustom.value));
+    }
+
+    // Click outside closes highlight popup
+    document.addEventListener('click', (e) => {
+        if (elements.editHighlightGroup && !elements.editHighlightGroup.contains(e.target)) {
+            closeHighlightPopup();
+        }
+    });
+
+    // HR / Note / Image / Link
+    if (elements.editBtnHr) {
+        elements.editBtnHr.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+        elements.editBtnHr.addEventListener('click', insertHorizontalRule);
+    }
+    if (elements.editBtnNote) {
+        elements.editBtnNote.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+        elements.editBtnNote.addEventListener('click', insertNoteBlock);
+    }
+    if (elements.editBtnImage) {
+        elements.editBtnImage.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+        elements.editBtnImage.addEventListener('click', openImageModal);
+    }
+    if (elements.editBtnLink) {
+        elements.editBtnLink.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+        elements.editBtnLink.addEventListener('click', openLinkModal);
+    }
+
+    // Image modal internals
+    if (elements.editImgTabUrl) {
+        elements.editImgTabUrl.addEventListener('click', () => switchImageTab('url'));
+    }
+    if (elements.editImgTabFile) {
+        elements.editImgTabFile.addEventListener('click', () => switchImageTab('file'));
+    }
+    if (elements.editImgFileInput) {
+        elements.editImgFileInput.addEventListener('change', handleImageFileSelect);
+    }
+    if (elements.editImgInsertBtn) elements.editImgInsertBtn.addEventListener('click', insertImage);
+    if (elements.editImgCancelBtn) elements.editImgCancelBtn.addEventListener('click', closeImageModal);
+    // Click on backdrop closes modal
+    if (elements.editImageModal) {
+        elements.editImageModal.addEventListener('click', (e) => {
+            if (e.target === elements.editImageModal) closeImageModal();
+        });
+    }
+
+    // Link modal internals
+    if (elements.editLinkInsertBtn) elements.editLinkInsertBtn.addEventListener('click', insertLink);
+    if (elements.editLinkCancelBtn) elements.editLinkCancelBtn.addEventListener('click', closeLinkModal);
+    if (elements.editLinkModal) {
+        elements.editLinkModal.addEventListener('click', (e) => {
+            if (e.target === elements.editLinkModal) closeLinkModal();
+        });
+    }
+
+    // selectionchange → update toolbar active states
+    document.addEventListener('selectionchange', () => {
+        if (!editorState.active) return;
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode && elements.articleRoot && elements.articleRoot.contains(sel.anchorNode)) {
+            updateToolbarState();
+        }
+    });
+
+    // Keyboard shortcuts inside article: Ctrl/Cmd+S = save, Escape = cancel
+    if (elements.articleRoot) {
+        elements.articleRoot.addEventListener('keydown', (e) => {
+            if (!editorState.active) return;
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                exitEditMode(true);
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                exitEditMode(false);
+            }
+        });
+    }
 }

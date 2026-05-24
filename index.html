@@ -122,7 +122,140 @@
                                 <button class="btn-secondary font-btn" data-font="20" type="button">A+</button>
                                 <button class="btn-secondary font-btn" data-font="22" type="button">A++</button>
                             </div>
+                            <input type="file" id="epubUploadInput" accept=".epub" hidden>
+                            <button id="epubUploadBtn" class="btn-secondary" type="button">📂 Open</button>
                             <button id="downloadEpub" class="btn-success" type="button" disabled>📥 EPUB</button>
+                            <button id="editToggleBtn" class="btn-secondary edit-toggle-btn" type="button" disabled>Edit</button>
+                        </div>
+                    </div>
+
+                    <!-- Edit toolbar row — shown only in edit mode -->
+                    <div id="editToolbarRow" class="edit-toolbar-row" style="display:none;" role="toolbar" aria-label="Text formatting">
+
+                        <div class="edit-tool-group">
+                            <button class="edit-btn" data-cmd="bold"      type="button" title="Bold"><b>B</b></button>
+                            <button class="edit-btn" data-cmd="italic"    type="button" title="Italic"><em>I</em></button>
+                            <button class="edit-btn" data-cmd="underline" type="button" title="Underline"><u>U</u></button>
+                        </div>
+
+                        <div class="edit-tool-sep"></div>
+
+                        <div class="edit-tool-group">
+                            <div class="edit-color-wrap">
+                                <button class="edit-btn edit-btn--color" id="editBtnFontColor" type="button" title="Font color">
+                                    <span class="edit-color-icon">A</span>
+                                    <span class="edit-color-bar" id="editColorBar" style="background:#ef4444"></span>
+                                </button>
+                                <input type="color" id="editColorPicker" class="edit-color-picker" value="#ef4444" tabindex="-1" aria-label="Font color">
+                            </div>
+                        </div>
+
+                        <div class="edit-tool-sep"></div>
+
+                        <div class="edit-tool-group edit-tool-group--highlight" id="editHighlightGroup">
+                            <button class="edit-btn edit-btn--hl" id="editBtnHighlight" type="button" title="Highlight" aria-haspopup="true" aria-expanded="false">
+                                <span class="edit-hl-swatch" id="editHlSwatch" style="background:#fef08a"></span> HL
+                            </button>
+                            <div class="edit-hl-popup" id="editHlPopup" hidden>
+                                <button class="edit-hl-preset" data-color="#fef08a" style="background:#fef08a" type="button" title="Yellow"></button>
+                                <button class="edit-hl-preset" data-color="#bbf7d0" style="background:#bbf7d0" type="button" title="Green"></button>
+                                <button class="edit-hl-preset" data-color="#fecdd3" style="background:#fecdd3" type="button" title="Pink"></button>
+                                <button class="edit-hl-preset" data-color="#bae6fd" style="background:#bae6fd" type="button" title="Blue"></button>
+                                <button class="edit-hl-remove" id="editHlRemove" type="button" title="Remove highlight">&#10005;</button>
+                                <input type="color" id="editHlCustom" class="edit-hl-custom" value="#fef08a" title="Custom highlight color" aria-label="Custom highlight color">
+                            </div>
+                        </div>
+
+                        <div class="edit-tool-sep"></div>
+
+                        <div class="edit-tool-group">
+                            <select id="editFontSizeSelect" class="edit-select" title="Selection font size">
+                                <option value="">Size</option>
+                                <option value="12">12px</option>
+                                <option value="14">14px</option>
+                                <option value="16">16px</option>
+                                <option value="18">18px</option>
+                                <option value="20">20px</option>
+                                <option value="24">24px</option>
+                                <option value="28">28px</option>
+                                <option value="32">32px</option>
+                            </select>
+                        </div>
+
+                        <div class="edit-tool-sep"></div>
+
+                        <div class="edit-tool-group">
+                            <button class="edit-btn" data-cmd="justifyLeft"   type="button" title="Align left">&#8676;</button>
+                            <button class="edit-btn" data-cmd="justifyCenter" type="button" title="Center">&#8285;</button>
+                            <button class="edit-btn" data-cmd="justifyRight"  type="button" title="Align right">&#8677;</button>
+                            <button class="edit-btn" data-cmd="justifyFull"   type="button" title="Justify">&#8803;</button>
+                        </div>
+
+                        <div class="edit-tool-sep"></div>
+
+                        <div class="edit-tool-group">
+                            <button class="edit-btn" data-cmd="insertUnorderedList" type="button" title="Bullet list">&#8226; List</button>
+                            <button class="edit-btn" data-cmd="insertOrderedList"   type="button" title="Numbered list">1. List</button>
+                        </div>
+
+                        <div class="edit-tool-sep"></div>
+
+                        <div class="edit-tool-group">
+                            <button class="edit-btn" id="editBtnHr"    type="button" title="Horizontal rule">&#8213; HR</button>
+                            <button class="edit-btn" id="editBtnNote"  type="button" title="Insert note block">&#9632; Note</button>
+                            <button class="edit-btn" id="editBtnImage" type="button" title="Insert image">Img</button>
+                            <button class="edit-btn" id="editBtnLink"  type="button" title="Insert / edit link">Link</button>
+                        </div>
+
+                    </div>
+
+                    <!-- Save / Cancel action bar -->
+                    <div id="editActionRow" class="edit-action-row" style="display:none;">
+                        <span class="edit-mode-label">Edit Mode</span>
+                        <button id="editSaveBtn"   class="btn-success edit-save-btn"    type="button">Save</button>
+                        <button id="editCancelBtn" class="btn-secondary edit-cancel-btn" type="button">Cancel</button>
+                    </div>
+
+                    <!-- Image insert modal -->
+                    <div id="editImageModal" class="edit-modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="editImageModalTitle">
+                        <div class="edit-modal">
+                            <h3 id="editImageModalTitle" class="edit-modal-title">Insert Image</h3>
+                            <div class="edit-modal-tabs" role="tablist">
+                                <button class="edit-modal-tab edit-modal-tab--active" id="editImgTabUrl"  type="button" role="tab" aria-selected="true"  aria-controls="editImgPanelUrl">URL</button>
+                                <button class="edit-modal-tab"                        id="editImgTabFile" type="button" role="tab" aria-selected="false" aria-controls="editImgPanelFile">Upload</button>
+                            </div>
+                            <div id="editImgPanelUrl" class="edit-modal-panel" role="tabpanel">
+                                <label class="edit-modal-label" for="editImgUrlInput">Image URL</label>
+                                <input id="editImgUrlInput" class="edit-modal-input" type="url" placeholder="https://example.com/image.png">
+                                <label class="edit-modal-label" for="editImgAltUrl">Alt text</label>
+                                <input id="editImgAltUrl"   class="edit-modal-input" type="text" placeholder="Description (optional)">
+                            </div>
+                            <div id="editImgPanelFile" class="edit-modal-panel" role="tabpanel" hidden>
+                                <label class="edit-modal-label" for="editImgFileInput">Choose image file</label>
+                                <input id="editImgFileInput" class="edit-modal-file" type="file" accept="image/*">
+                                <label class="edit-modal-label" for="editImgAltFile">Alt text</label>
+                                <input id="editImgAltFile"  class="edit-modal-input" type="text" placeholder="Description (optional)">
+                                <div id="editImgPreview" class="edit-img-preview" hidden></div>
+                            </div>
+                            <div class="edit-modal-actions">
+                                <button id="editImgInsertBtn" class="btn-success"   type="button">Insert</button>
+                                <button id="editImgCancelBtn" class="btn-secondary" type="button">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Link insert / edit modal -->
+                    <div id="editLinkModal" class="edit-modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="editLinkModalTitle">
+                        <div class="edit-modal">
+                            <h3 id="editLinkModalTitle" class="edit-modal-title">Insert / Edit Link</h3>
+                            <label class="edit-modal-label" for="editLinkText">Link text</label>
+                            <input id="editLinkText" class="edit-modal-input" type="text"  placeholder="Link label">
+                            <label class="edit-modal-label" for="editLinkUrl">URL</label>
+                            <input id="editLinkUrl"  class="edit-modal-input" type="url"   placeholder="https://example.com">
+                            <div class="edit-modal-actions">
+                                <button id="editLinkInsertBtn" class="btn-success"   type="button">Apply</button>
+                                <button id="editLinkCancelBtn" class="btn-secondary" type="button">Cancel</button>
+                            </div>
                         </div>
                     </div>
 

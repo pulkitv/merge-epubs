@@ -756,3 +756,430 @@ footer {
 .card {
     animation: fadeIn 0.3s ease;
 }
+
+/* ── Edit Mode ───────────────────────────────────────────────────── */
+
+/* Edit toggle button — active state */
+.edit-toggle-btn.edit-active {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+/* Edit toolbar row */
+.edit-toolbar-row {
+    z-index: 4;
+    background: var(--reader-surface);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0.5rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+}
+
+.edit-toolbar-row::-webkit-scrollbar {
+    display: none;
+}
+
+/* Save / Cancel action bar */
+.edit-action-row {
+    background: var(--reader-surface);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0.4rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.edit-mode-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: auto;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+    padding: 0.4rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Tool groups and separators */
+.edit-tool-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.edit-tool-sep {
+    width: 1px;
+    height: 1.2rem;
+    background: rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+    margin: 0 0.2rem;
+}
+
+/* Edit buttons */
+.edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: var(--reader-text);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 0.28rem 0.5rem;
+    transition: background 0.15s, border-color 0.15s;
+    min-width: 1.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.edit-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Active formatting state at cursor */
+.edit-btn.edit-btn--on {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+/* Font color button — column layout for icon + color bar */
+.edit-btn--color {
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.25rem 0.4rem;
+}
+
+.edit-color-icon {
+    font-weight: 700;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.edit-color-bar {
+    height: 3px;
+    width: 1rem;
+    border-radius: 2px;
+}
+
+/* Hidden native color input overlaid on button */
+.edit-color-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.edit-color-picker {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+}
+
+/* Font size select */
+.edit-select {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    color: var(--reader-text);
+    font-size: 0.8rem;
+    font-family: inherit;
+    padding: 0.28rem 0.4rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.edit-select option {
+    background: var(--reader-surface);
+    color: var(--reader-text);
+}
+
+/* Highlight palette */
+.edit-tool-group--highlight {
+    position: relative;
+}
+
+.edit-btn--hl {
+    gap: 0.3rem;
+}
+
+.edit-hl-swatch {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 2px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.edit-hl-popup {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 20;
+    background: var(--reader-surface);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.edit-hl-popup[hidden] {
+    display: none;
+}
+
+.edit-hl-preset {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: transform 0.1s;
+}
+
+.edit-hl-preset:hover {
+    transform: scale(1.2);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.edit-hl-preset.edit-hl-selected {
+    border-color: var(--primary-color);
+}
+
+.edit-hl-remove {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: var(--reader-text);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.edit-hl-remove:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Custom color input inside highlight palette — visible (not overlaid) */
+.edit-hl-custom {
+    width: 1.4rem;
+    height: 1.4rem;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+/* Contenteditable active-field indicator */
+.edit-active-field {
+    outline: 2px dashed var(--primary-color) !important;
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+
+/* Note block (blockquote inserted by editor) */
+.reader-content .edit-note-block {
+    border-left: 4px solid var(--primary-color);
+    background: rgba(79, 70, 229, 0.07);
+    margin: 1.25rem 0;
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    color: var(--reader-muted);
+    font-style: italic;
+}
+
+/* ── Modals ──────────────────────────────────────────────────────── */
+
+.edit-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.edit-modal-overlay[hidden] {
+    display: none;
+}
+
+.edit-modal {
+    background: var(--reader-surface);
+    color: var(--reader-text);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.edit-modal-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--reader-text);
+    margin: 0;
+}
+
+.edit-modal-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.5rem;
+}
+
+.edit-modal-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--reader-muted);
+    font-size: 0.875rem;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 0.3rem 0.75rem;
+    cursor: pointer;
+    border-radius: 5px 5px 0 0;
+    margin-bottom: -1px;
+}
+
+.edit-modal-tab--active {
+    color: var(--reader-text);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.edit-modal-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.edit-modal-panel[hidden] {
+    display: none;
+}
+
+.edit-modal-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--reader-muted);
+    display: block;
+}
+
+.edit-modal-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: var(--reader-text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.edit-modal-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
+}
+
+.edit-modal-file {
+    font-size: 0.85rem;
+    color: var(--reader-text);
+    width: 100%;
+}
+
+.edit-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 0.25rem;
+}
+
+.edit-img-preview {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.edit-img-preview img {
+    max-width: 100%;
+    max-height: 130px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ─── EPUB chapter layout ─────────────────────────────────────────────── */
+
+.epub-chapter {
+    margin-bottom: 2.5em;
+}
+
+.epub-chapter + .epub-chapter {
+    border-top: 1px solid var(--divider);
+    padding-top: 2.5em;
+}
+
+/* Let injected EPUB stylesheet control its own text-indent / spacing */
+#articleRoot .epub-chapter p {
+    text-indent: inherit;
+    margin: inherit;
+}
+
+/* Mobile responsive additions for edit UI */
+@media (max-width: 640px) {
+    .edit-toolbar-row {
+        padding: 0.4rem 0.75rem;
+        gap: 0.3rem;
+    }
+
+    .edit-action-row {
+        padding: 0.35rem 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .edit-btn {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+    }
+
+    .edit-modal {
+        padding: 1rem;
+        max-width: 100%;
+    }
+}

@@ -32,7 +32,7 @@ Extension sends HTML via postMessage → UI sanitizes and renders
 | **script.js** | ALL application logic here |
 | **index.html** | HTML structure (IDs used by JS) |
 | **styles.css** | Design (CSS variables for colors) |
-| **ARCHITECTURE.md** | Deep technical details |
+| **doc/architecture.md** | Deep technical details |
 | **WEBAPP_POSTMESSAGE_README.md** | Extension integration details |
 
 ## 💾 Critical Variables
@@ -179,7 +179,7 @@ curl https://epub-combiner-api.onrender.com/config
 
 1. **Start Here**: This file (30-second overview)
 2. **Then Read**: [README.md](README.md) (features & usage)
-3. **Deep Dive**: [ARCHITECTURE.md](ARCHITECTURE.md) (technical details)
+3. **Deep Dive**: [doc/architecture.md](doc/architecture.md) (technical details)
 4. **API Info**: [INTEGRATION-combine-epub.md](INTEGRATION-combine-epub.md) (backend API)
 
 ## 💡 Pro Tips
@@ -212,10 +212,10 @@ python3 -m http.server 8080
 
 ## 📞 Need More Details?
 
-- **How does combining work?** → See [ARCHITECTURE.md - File Processing Flow](ARCHITECTURE.md#-file-processing-flow)
-- **What are the limits?** → See [ARCHITECTURE.md - Performance & Limits](ARCHITECTURE.md#-performance--limits)
-- **How to deploy changes?** → See [ARCHITECTURE.md - Deployment Guide](ARCHITECTURE.md#-deployment-guide)
-- **Troubleshooting?** → See [README.md - Troubleshooting](README.md#-troubleshooting)
+- **How does combining work?** → See [doc/architecture.md - File Processing Flow](doc/architecture.md#file-processing-flow)
+- **What are the limits?** → See [doc/architecture.md - Performance & Limits](doc/architecture.md#performance--limits)
+- **How to deploy changes?** → See [doc/architecture.md - Deployment Guide](doc/architecture.md#deployment-guide)
+- **Troubleshooting?** → See [doc/architecture.md - Troubleshooting](doc/architecture.md#troubleshooting)
 
 ---
 

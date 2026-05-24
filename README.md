@@ -92,15 +92,19 @@ npx http-server -p 8080
 
 ```
 merge-epubs/
-├── index.html           # Main HTML structure
-├── styles.css           # Styling and responsive design
-├── script.js            # Application logic and API integration
-├── README.md            # This file
-├── ARCHITECTURE.md      # Technical documentation
-├── QUICK_START_AI.md     # Quick start for AI coding assistants
-├── INTEGRATION-combine-epub.md  # API integration guide
-├── WEBAPP_POSTMESSAGE_README.md # Extension postMessage integration
-└── readeasy-postmessage-listener.js # Helper listener reference
+├── index.html                        # Main HTML structure
+├── styles.css                        # Styling and responsive design
+├── script.js                         # Application logic and API integration
+├── README.md                         # This file
+├── QUICK_START_AI.md                 # Quick start for AI coding assistants
+├── INTEGRATION-combine-epub.md       # API integration guide
+├── WEBAPP_POSTMESSAGE_README.md      # Extension postMessage integration
+├── readeasy-postmessage-listener.js  # Helper listener reference
+└── doc/
+    ├── architecture.md               # Full technical documentation
+    ├── sprint-2026-01.md             # January 2026 sprint log
+    ├── sprint-2026-02.md             # February 2026 sprint log
+    └── doc-template.md               # Documentation conventions
 ```
 
 ## 🔧 Configuration
@@ -239,7 +243,7 @@ For issues or contributions, please visit: https://github.com/pulkitv/merge-epub
 
 ## 📄 Related Documentation
 
-- [Architecture & Technical Details](ARCHITECTURE.md) - Deep dive into code structure
+- [Architecture & Technical Details](doc/architecture.md) - Deep dive into code structure
 - [API Integration Guide](INTEGRATION-combine-epub.md) - Backend API reference
 
 ## 📜 License
