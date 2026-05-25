@@ -1695,7 +1695,7 @@ async function loadLibrary() {
 }
 
 async function fetchSupabaseArticles() {
-    const resp = await fetch('/api/library', {
+    const resp = await fetch('/api/articles', {
         headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
     if (!resp.ok) {
@@ -1706,7 +1706,7 @@ async function fetchSupabaseArticles() {
 }
 
 async function fetchSignedUrl(contentPath) {
-    const resp = await fetch('/api/article?' + new URLSearchParams({ content_path: contentPath }), {
+    const resp = await fetch('/api/article-content?' + new URLSearchParams({ content_path: contentPath }), {
         headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
     if (!resp.ok) {
