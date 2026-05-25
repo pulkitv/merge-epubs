@@ -1,46 +1,54 @@
 export const config = { runtime: 'edge' };
 
-const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
-// Module-level reference required by Vercel Edge static analysis to inject the env var
 const SUPABASE_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-function json(data, status = 200) {
-    return new Response(JSON.stringify(data), {
-        status,
-        headers: { 'Content-Type': 'application/json' }
-    });
-}
-
-async function verifyGoogleIdToken(idToken) {
-    const resp = await fetch(
-        'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken)
-    );
-    if (!resp.ok) return null;
-    const info = await resp.json();
-    return info.sub || null;
-}
+const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
 export default async function handler(request) {
     const supabaseSecret = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET;
 
     const authHeader = request.headers.get('Authorization') || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!idToken) return json({ error: 'Unauthorized' }, 401);
+    if (!idToken) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401, headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
-    const googleUid = await verifyGoogleIdToken(idToken);
-    if (!googleUid) return json({ error: 'Invalid or expired session. Please sign in again.' }, 401);
+    const verifyResp = await fetch(
+        'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken)
+    );
+    if (!verifyResp.ok) {
+        return new Response(JSON.stringify({ error: 'Invalid or expired session. Please sign in again.' }), {
+            status: 401, headers: { 'Content-Type': 'application/json' }
+        });
+    }
+    const info = await verifyResp.json();
+    const googleUid = info.sub;
+    if (!googleUid) {
+        return new Response(JSON.stringify({ error: 'Invalid or expired session. Please sign in again.' }), {
+            status: 401, headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
     const { searchParams } = new URL(request.url);
     const contentPath = searchParams.get('content_path') || '';
 
     if (!contentPath || contentPath.includes('..') || contentPath.startsWith('/')) {
-        return json({ error: 'Invalid content path' }, 400);
+        return new Response(JSON.stringify({ error: 'Invalid content path' }), {
+            status: 400, headers: { 'Content-Type': 'application/json' }
+        });
     }
     if (!contentPath.startsWith(googleUid + '/')) {
-        return json({ error: 'Access denied' }, 403);
+        return new Response(JSON.stringify({ error: 'Access denied' }), {
+            status: 403, headers: { 'Content-Type': 'application/json' }
+        });
     }
 
-    if (!supabaseSecret) return json({ error: 'Server not configured' }, 500);
+    if (!supabaseSecret) {
+        return new Response(JSON.stringify({ error: 'Server not configured' }), {
+            status: 500, headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
     const encodedPath = contentPath.split('/').map(encodeURIComponent).join('/');
     const signUrl = SUPABASE_URL + '/storage/v1/object/sign/article-content/' + encodedPath;
@@ -55,11 +63,21 @@ export default async function handler(request) {
         body: JSON.stringify({ expiresIn: 3600 })
     });
 
-    if (!signResp.ok) return json({ error: 'Failed to generate download URL' }, 502);
+    if (!signResp.ok) {
+        return new Response(JSON.stringify({ error: 'Failed to generate download URL' }), {
+            status: 502, headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
     const signData = await signResp.json();
     const signedUrl = signData.signedURL || signData.signedUrl;
-    if (!signedUrl) return json({ error: 'No signed URL in storage response' }, 502);
+    if (!signedUrl) {
+        return new Response(JSON.stringify({ error: 'No signed URL in storage response' }), {
+            status: 502, headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
-    return json({ signedUrl });
+    return new Response(JSON.stringify({ signedUrl }), {
+        status: 200, headers: { 'Content-Type': 'application/json' }
+    });
 }
