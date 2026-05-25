@@ -1,7 +1,9 @@
 export const config = { runtime: 'edge' };
 
-const BUILD_MARKER = 'v5-2026-05-26-full-diag';
+const BUILD_MARKER = 'v6-module-ref';
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
+// Module-level reference required by Vercel Edge static analysis to inject the env var
+const SUPABASE_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -20,7 +22,7 @@ async function verifyGoogleIdToken(idToken) {
 }
 
 export default async function handler(request) {
-    const supabaseSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseSecret = SUPABASE_SECRET;
 
     const authHeader = request.headers.get('Authorization') || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
