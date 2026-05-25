@@ -1695,7 +1695,7 @@ async function loadLibrary() {
 }
 
 async function fetchSupabaseArticles() {
-    const resp = await fetch('/api/articles', {
+    const resp = await fetch('/api/saved-list', {
         headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
     if (!resp.ok) {
