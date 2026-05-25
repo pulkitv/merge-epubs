@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-// build-bust: 2026-05-26
+const BUILD_MARKER = 'v3-2026-05-26-diag';
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -28,7 +28,14 @@ export default async function handler(request) {
     const googleUid = await verifyGoogleIdToken(idToken);
     if (!googleUid) return json({ error: 'Invalid or expired session. Please sign in again.' }, 401);
 
-    if (!SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'Server not configured' }, 500);
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+        return json({
+            error: 'Server not configured',
+            build: BUILD_MARKER,
+            keyType: typeof SUPABASE_SERVICE_ROLE_KEY,
+            keyLen: SUPABASE_SERVICE_ROLE_KEY ? SUPABASE_SERVICE_ROLE_KEY.length : 0
+        }, 500);
+    }
 
     const url = SUPABASE_URL
         + '/rest/v1/articles'
