@@ -21,7 +21,7 @@ async function verifyGoogleIdToken(idToken) {
 }
 
 export default async function handler(request) {
-    const supabaseSecret = SUPABASE_SECRET;
+    const supabaseSecret = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET;
 
     const authHeader = request.headers.get('Authorization') || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
