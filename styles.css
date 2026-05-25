@@ -223,14 +223,15 @@ h2 {
     border: 1px solid var(--border-color);
 }
 
-/* Reader view: cancel the nav's margin-bottom so toolbar is flush below nav */
-body[data-view="reader"] main {
-    margin-top: -1.5rem;
+/* Reader view: remove nav margin-bottom so toolbar is flush below nav */
+body[data-view="reader"] .top-nav {
+    margin-bottom: 0;
 }
 
 .reader-card {
     padding: 0;
-    overflow: hidden;
+    overflow: hidden; /* fallback */
+    overflow: clip;   /* clip without creating a scroll context — allows child sticky to work */
     background: var(--reader-bg);
     color: var(--reader-text);
     border: 1px solid var(--reader-card-border);
