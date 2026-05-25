@@ -1,8 +1,9 @@
-const SUPABASE_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const config = { runtime: 'nodejs' };
+
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
 export default async function handler(req, res) {
-    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET;
+    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const authHeader = req.headers.authorization || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();

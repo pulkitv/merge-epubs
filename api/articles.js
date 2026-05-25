@@ -1,8 +1,9 @@
-const SUPABASE_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const config = { runtime: 'nodejs' };
+
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
 export default async function handler(req, res) {
-    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET;
+    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const authHeader = req.headers.authorization || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
@@ -26,7 +27,17 @@ export default async function handler(req, res) {
     }
 
     if (!inlineKey) {
-        res.status(500).json({ error: 'Server not configured' });
+        const envObj = process.env || {};
+        const envKeys = Object.keys(envObj).sort();
+        const supabaseKeys = envKeys.filter((k) => k.toUpperCase().includes('SUPABASE'));
+        res.status(500).json({
+            error: 'Server not configured',
+            build: 'nodejs-explicit',
+            runtimeHint: typeof globalThis.EdgeRuntime === 'string' ? 'edge' : 'nodejs',
+            keyType: typeof inlineKey,
+            supabaseEnvVarNames: supabaseKeys,
+            totalEnvVars: envKeys.length
+        });
         return;
     }
 
