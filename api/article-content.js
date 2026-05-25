@@ -1,49 +1,44 @@
-export const config = { runtime: 'edge' };
-
 const SUPABASE_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
-export default async function handler(request) {
-    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export default async function handler(req, res) {
+    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET;
 
-    const authHeader = request.headers.get('Authorization') || '';
+    const authHeader = req.headers.authorization || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
-
-    let verifiedSub = null;
-    if (idToken) {
-        const verifyResp = await fetch(
-            'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken)
-        );
-        if (verifyResp.ok) {
-            const info = await verifyResp.json();
-            verifiedSub = info.sub || null;
-        }
+    if (!idToken) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
     }
 
-    if (!verifiedSub) {
-        return new Response(JSON.stringify({ error: 'Invalid or expired session. Please sign in again.' }), {
-            status: 401, headers: { 'Content-Type': 'application/json' }
-        });
+    const verifyResp = await fetch(
+        'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken)
+    );
+    if (!verifyResp.ok) {
+        res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
+        return;
+    }
+    const info = await verifyResp.json();
+    const googleUid = info.sub;
+    if (!googleUid) {
+        res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
+        return;
     }
 
-    const { searchParams } = new URL(request.url);
-    const contentPath = searchParams.get('content_path') || '';
+    const contentPath = (req.query && req.query.content_path) || '';
 
     if (!contentPath || contentPath.includes('..') || contentPath.startsWith('/')) {
-        return new Response(JSON.stringify({ error: 'Invalid content path' }), {
-            status: 400, headers: { 'Content-Type': 'application/json' }
-        });
+        res.status(400).json({ error: 'Invalid content path' });
+        return;
     }
-    if (!contentPath.startsWith(verifiedSub + '/')) {
-        return new Response(JSON.stringify({ error: 'Access denied' }), {
-            status: 403, headers: { 'Content-Type': 'application/json' }
-        });
+    if (!contentPath.startsWith(googleUid + '/')) {
+        res.status(403).json({ error: 'Access denied' });
+        return;
     }
 
     if (!inlineKey) {
-        return new Response(JSON.stringify({ error: 'Server not configured' }), {
-            status: 500, headers: { 'Content-Type': 'application/json' }
-        });
+        res.status(500).json({ error: 'Server not configured' });
+        return;
     }
 
     const encodedPath = contentPath.split('/').map(encodeURIComponent).join('/');
@@ -60,20 +55,16 @@ export default async function handler(request) {
     });
 
     if (!signResp.ok) {
-        return new Response(JSON.stringify({ error: 'Failed to generate download URL' }), {
-            status: 502, headers: { 'Content-Type': 'application/json' }
-        });
+        res.status(502).json({ error: 'Failed to generate download URL' });
+        return;
     }
 
     const signData = await signResp.json();
     const signedUrl = signData.signedURL || signData.signedUrl;
     if (!signedUrl) {
-        return new Response(JSON.stringify({ error: 'No signed URL in storage response' }), {
-            status: 502, headers: { 'Content-Type': 'application/json' }
-        });
+        res.status(502).json({ error: 'No signed URL in storage response' });
+        return;
     }
 
-    return new Response(JSON.stringify({ signedUrl }), {
-        status: 200, headers: { 'Content-Type': 'application/json' }
-    });
+    res.status(200).json({ signedUrl });
 }
