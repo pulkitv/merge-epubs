@@ -32,7 +32,17 @@ export default async function handler(request) {
     }
 
     if (!supabaseSecret) {
-        return new Response(JSON.stringify({ error: 'Server not configured' }), {
+        const envObj = process.env || {};
+        const envKeys = Object.keys(envObj).sort();
+        const supabaseKeys = envKeys.filter((k) => k.toUpperCase().includes('SUPABASE'));
+        return new Response(JSON.stringify({
+            error: 'Server not configured',
+            build: 'ca45653',
+            moduleSecretType: typeof SUPABASE_SECRET,
+            directReadType: typeof process.env.SUPABASE_SERVICE_ROLE_KEY,
+            supabaseEnvVarNames: supabaseKeys,
+            totalEnvVars: envKeys.length
+        }), {
             status: 500, headers: { 'Content-Type': 'application/json' }
         });
     }
