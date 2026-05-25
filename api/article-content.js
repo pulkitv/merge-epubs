@@ -1,5 +1,3 @@
-export const config = { runtime: 'nodejs' };
-
 const MODULE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 

@@ -1,5 +1,3 @@
-export const config = { runtime: 'nodejs' };
-
 const MODULE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
@@ -33,7 +31,7 @@ export default async function handler(req, res) {
         const supabaseKeys = envKeys.filter((k) => k.toUpperCase().includes('SUPABASE'));
         res.status(500).json({
             error: 'Server not configured',
-            build: 'nodejs-module+direct',
+            build: 'no-config-export',
             runtimeHint: typeof globalThis.EdgeRuntime === 'string' ? 'edge' : 'nodejs',
             moduleKeyType: typeof MODULE_KEY,
             inlineKeyType: typeof inlineKey,
