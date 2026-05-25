@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const BUILD_MARKER = 'v4-2026-05-26-runtime-read';
+const BUILD_MARKER = 'v5-2026-05-26-full-diag';
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
 function json(data, status = 200) {
@@ -30,11 +30,17 @@ export default async function handler(request) {
     if (!googleUid) return json({ error: 'Invalid or expired session. Please sign in again.' }, 401);
 
     if (!supabaseSecret) {
+        const envObj = process.env || {};
+        const envKeys = Object.keys(envObj).sort();
+        const supabaseKeys = envKeys.filter((k) => k.toUpperCase().includes('SUPABASE'));
         return json({
             error: 'Server not configured',
             build: BUILD_MARKER,
             keyType: typeof supabaseSecret,
-            keyLen: supabaseSecret ? supabaseSecret.length : 0
+            keyLen: supabaseSecret ? supabaseSecret.length : 0,
+            totalEnvVars: envKeys.length,
+            supabaseEnvVarNames: supabaseKeys,
+            processEnvType: typeof process.env
         }, 500);
     }
 
