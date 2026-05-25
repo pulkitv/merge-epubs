@@ -43,6 +43,12 @@ const editorState = {
     editingLink: null           // <a> element being edited (pre-populated link modal)
 };
 
+const paginationState = {
+    enabled: false,
+    pages: [],      // HTML string per chapter
+    currentPage: 0
+};
+
 // DOM elements
 const elements = {
     apiUrlInput: document.getElementById('apiUrl'),
@@ -121,7 +127,10 @@ const elements = {
     editLinkText: document.getElementById('editLinkText'),
     editLinkUrl: document.getElementById('editLinkUrl'),
     editLinkInsertBtn: document.getElementById('editLinkInsertBtn'),
-    editLinkCancelBtn: document.getElementById('editLinkCancelBtn')
+    editLinkCancelBtn: document.getElementById('editLinkCancelBtn'),
+    // Pagination
+    paginationTop: document.getElementById('paginationTop'),
+    paginationBottom: document.getElementById('paginationBottom')
 };
 
 // Initialize
@@ -222,6 +231,7 @@ function setupEventListeners() {
     }
 
     setupEditEventListeners();
+    setupPaginationListeners();
 }
 
 function setupRouting() {
@@ -533,12 +543,26 @@ function renderReaderContent(payload) {
         removeEpubStyles();
     }
 
-    if (elements.articleRoot) {
-        elements.articleRoot.innerHTML = renderedHtml;
-    }
-
     // Store payload for EPUB download
     readerState.currentArticle = payload;
+
+    // Reset pagination whenever new content arrives
+    paginationState.enabled = false;
+    paginationState.pages = [];
+    paginationState.currentPage = 0;
+    hidePaginationBars();
+
+    // Multi-chapter EPUBs get paginated; everything else renders directly
+    if (payload.isEpub) {
+        const pages = splitIntoPages(renderedHtml);
+        if (pages) {
+            setupPagination(pages);
+        } else if (elements.articleRoot) {
+            elements.articleRoot.innerHTML = renderedHtml;
+        }
+    } else if (elements.articleRoot) {
+        elements.articleRoot.innerHTML = renderedHtml;
+    }
 
     // Enable download button
     if (elements.downloadEpubBtn) {
@@ -1564,6 +1588,93 @@ function findCssRuleEnd(css, start) {
     return i;
 }
 
+// ─── Pagination ──────────────────────────────────────────────────────────────
+
+function splitIntoPages(sanitizedHtml) {
+    const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
+    const chapters = Array.from(doc.querySelectorAll('.epub-chapter'));
+    if (chapters.length <= 1) return null;
+    return chapters.map((ch) => ch.outerHTML);
+}
+
+function setupPagination(pages) {
+    paginationState.enabled = true;
+    paginationState.pages = pages;
+    paginationState.currentPage = 0;
+    renderPage(0);
+}
+
+function renderPage(pageIndex) {
+    paginationState.currentPage = pageIndex;
+    if (elements.articleRoot) {
+        elements.articleRoot.innerHTML = paginationState.pages[pageIndex] || '';
+    }
+    const scrollEl = document.querySelector('.reader-scroll');
+    if (scrollEl) scrollEl.scrollTop = 0;
+    renderPaginationBars();
+}
+
+function hidePaginationBars() {
+    if (elements.paginationTop) elements.paginationTop.hidden = true;
+    if (elements.paginationBottom) elements.paginationBottom.hidden = true;
+}
+
+function renderPaginationBars() {
+    const html = buildPaginationHtml(paginationState.currentPage, paginationState.pages.length);
+    [elements.paginationTop, elements.paginationBottom].forEach((bar) => {
+        if (!bar) return;
+        bar.hidden = false;
+        bar.innerHTML = html;
+    });
+}
+
+function buildPaginationHtml(current, total) {
+    const parts = [];
+    parts.push(`<button class="page-btn" data-page="${current - 1}"${current === 0 ? ' disabled' : ''} aria-label="Previous page">← Prev</button>`);
+    for (const n of getPageNumbers(current, total)) {
+        if (n === '...') {
+            parts.push('<span class="page-ellipsis">…</span>');
+        } else {
+            const isCur = n === current;
+            parts.push(`<button class="page-btn${isCur ? ' page-btn--current' : ''}" data-page="${n}" aria-label="Page ${n + 1}"${isCur ? ' aria-current="page"' : ''}>${n + 1}</button>`);
+        }
+    }
+    parts.push(`<button class="page-btn" data-page="${current + 1}"${current === total - 1 ? ' disabled' : ''} aria-label="Next page">Next →</button>`);
+    return parts.join('');
+}
+
+function getPageNumbers(current, total) {
+    if (total <= 9) return Array.from({ length: total }, (_, i) => i);
+    const set = new Set([0, total - 1]);
+    for (let i = Math.max(0, current - 2); i <= Math.min(total - 1, current + 2); i++) set.add(i);
+    const sorted = Array.from(set).sort((a, b) => a - b);
+    const result = [];
+    for (let i = 0; i < sorted.length; i++) {
+        if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push('...');
+        result.push(sorted[i]);
+    }
+    return result;
+}
+
+function goToPage(pageIndex) {
+    if (pageIndex < 0 || pageIndex >= paginationState.pages.length) return;
+    // Auto-save the current page's edits before navigating
+    if (editorState.active) exitEditMode(true);
+    renderPage(pageIndex);
+}
+
+function setupPaginationListeners() {
+    [elements.paginationTop, elements.paginationBottom].forEach((bar) => {
+        if (!bar) return;
+        bar.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-page]');
+            if (!btn || btn.disabled) return;
+            const page = parseInt(btn.dataset.page, 10);
+            if (!isNaN(page)) goToPage(page);
+        });
+    });
+}
+
 // ─── Edit Mode ───────────────────────────────────────────────────────────────
 
 function saveSelection() {
@@ -1627,11 +1738,22 @@ function exitEditMode(save) {
     if (!editorState.active) return;
 
     if (save) {
-        // Commit edits back into currentArticle
-        if (readerState.currentArticle) {
-            readerState.currentArticle.html = elements.articleRoot ? elements.articleRoot.innerHTML : readerState.currentArticle.html;
-            readerState.currentArticle.title = elements.readerTitle ? elements.readerTitle.textContent : readerState.currentArticle.title;
-            readerState.currentArticle.byline = elements.readerByline ? elements.readerByline.textContent : readerState.currentArticle.byline;
+        const newHtml = elements.articleRoot ? elements.articleRoot.innerHTML : '';
+        const newTitle = elements.readerTitle ? elements.readerTitle.textContent : '';
+        const newByline = elements.readerByline ? elements.readerByline.textContent : '';
+
+        if (paginationState.enabled) {
+            // Persist current page's edits and rebuild the full article html
+            paginationState.pages[paginationState.currentPage] = newHtml;
+            if (readerState.currentArticle) {
+                readerState.currentArticle.html = paginationState.pages.join('\n');
+                readerState.currentArticle.title = newTitle;
+                readerState.currentArticle.byline = newByline;
+            }
+        } else if (readerState.currentArticle) {
+            readerState.currentArticle.html = newHtml || readerState.currentArticle.html;
+            readerState.currentArticle.title = newTitle;
+            readerState.currentArticle.byline = newByline;
         }
     } else {
         // Roll back to snapshot
