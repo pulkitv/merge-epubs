@@ -1293,15 +1293,25 @@ async function parseAndLoadEpub(file) {
 
         // Extract HTML body content in spine order
         let combinedHtml = '';
+        const seenPaths = new Set();
+        console.log('[EPUB] spine items to process:', spineOrder.length, spineOrder);
         for (const idref of spineOrder) {
             const item = manifest[idref];
             if (!item) continue;
             const mt = item.mediaType || '';
             if (!mt.includes('html') && !mt.includes('xhtml') && !item.fullPath.match(/\.(x?html?)$/i)) continue;
+            // Skip if we've already processed this exact file (duplicate idref or two idrefs → same file)
+            const normPath = item.fullPath.toLowerCase();
+            if (seenPaths.has(normPath)) {
+                console.log('[EPUB] skipping duplicate path:', item.fullPath);
+                continue;
+            }
+            seenPaths.add(normPath);
             const f = resolveZipFile(zip, item.fullPath);
             if (!f) continue;
             const fileDir = item.fullPath.includes('/') ? item.fullPath.substring(0, item.fullPath.lastIndexOf('/') + 1) : '';
             const { html: chapterHtml, css: chapterCss } = extractEpubChapter(await f.async('text'), fileDir, assetMap);
+            console.log('[EPUB] chapter:', item.fullPath, '— text preview:', chapterHtml.replace(/<[^>]+>/g, ' ').slice(0, 120).trim());
             if (chapterCss) allCss += chapterCss + '\n';
             if (chapterHtml) combinedHtml += `<div data-rp>${chapterHtml}</div>\n`;
         }
@@ -1352,11 +1362,31 @@ function parseOpfXml(xml, opfDir) {
         }
     });
 
-    // Spine reading order
+    // Identify the nav document (EPUB 3: properties="nav"; EPUB 2: guide type="toc")
+    const navItemIds = new Set();
+    doc.querySelectorAll('manifest item').forEach((item) => {
+        const props = (item.getAttribute('properties') || '').split(/\s+/);
+        if (props.includes('nav')) navItemIds.add(item.getAttribute('id'));
+    });
+    doc.querySelectorAll('guide reference').forEach((ref) => {
+        const type = (ref.getAttribute('type') || '').toLowerCase();
+        if (type === 'toc' || type === 'ncx') {
+            const href = ref.getAttribute('href') || '';
+            // Match against manifest hrefs
+            Object.values(manifest).forEach((m) => {
+                if (m.href === href || m.href.split('#')[0] === href) navItemIds.add(m.id);
+            });
+        }
+    });
+
+    // Spine reading order — skip non-linear and nav items
     const spineOrder = [];
     doc.querySelectorAll('spine itemref').forEach((itemref) => {
         const idref = itemref.getAttribute('idref');
-        if (idref) spineOrder.push(idref);
+        if (!idref) return;
+        if ((itemref.getAttribute('linear') || 'yes').toLowerCase() === 'no') return;
+        if (navItemIds.has(idref)) return;
+        spineOrder.push(idref);
     });
 
     return { title, author, manifest, spineOrder };
