@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -26,8 +27,7 @@ export default async function handler(request) {
     const googleUid = await verifyGoogleIdToken(idToken);
     if (!googleUid) return json({ error: 'Invalid or expired session. Please sign in again.' }, 401);
 
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceKey) return json({ error: 'Server not configured' }, 500);
+    if (!SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'Server not configured' }, 500);
 
     const url = SUPABASE_URL
         + '/rest/v1/articles'
@@ -37,8 +37,8 @@ export default async function handler(request) {
 
     const resp = await fetch(url, {
         headers: {
-            apikey: serviceKey,
-            Authorization: 'Bearer ' + serviceKey
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY
         }
     });
 

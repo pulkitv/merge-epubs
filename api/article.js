@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -37,8 +38,7 @@ export default async function handler(request) {
         return json({ error: 'Access denied' }, 403);
     }
 
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceKey) return json({ error: 'Server not configured' }, 500);
+    if (!SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'Server not configured' }, 500);
 
     // Encode each path segment, preserving the slash separator
     const encodedPath = contentPath.split('/').map(encodeURIComponent).join('/');
@@ -47,8 +47,8 @@ export default async function handler(request) {
     const signResp = await fetch(signUrl, {
         method: 'POST',
         headers: {
-            apikey: serviceKey,
-            Authorization: 'Bearer ' + serviceKey,
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ expiresIn: 3600 })
