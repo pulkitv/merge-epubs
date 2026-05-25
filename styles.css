@@ -291,34 +291,50 @@ body[data-view="reader"] .top-nav {
     flex-wrap: nowrap;
 }
 
-/* Reader toolbar buttons adapt to reader theme (dark / light / warm) */
+/* Reader toolbar buttons — compact style matching edit toolbar */
 .reader-tools-row .btn-secondary,
 .reader-tools-row .btn-success,
 .reader-tools-row .font-btn {
-    background: var(--reader-btn-bg);
+    background: transparent;
     color: var(--reader-text);
-    border-color: var(--reader-btn-border);
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 0.28rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.4;
 }
 
 .reader-tools-row .btn-secondary:hover,
 .reader-tools-row .font-btn:hover {
     background: var(--reader-btn-hover);
+    border-color: var(--reader-divider);
 }
 
+/* EPUB download button: green text on transparent bg */
 .reader-tools-row .btn-success {
-    background: var(--success-color);
-    color: #fff;
-    border-color: var(--success-color);
+    color: var(--success-color);
 }
 
 .reader-tools-row .btn-success:hover {
-    background: var(--success-hover);
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: var(--success-color);
 }
 
 .reader-tools-row .btn-success:disabled {
-    background: var(--reader-btn-bg);
+    background: transparent;
+    border-color: transparent;
     color: var(--reader-muted);
-    border-color: var(--reader-btn-border);
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Active font size button */
+.reader-tools-row .font-btn.active {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
 }
 
 .font-controls {
