@@ -19,10 +19,6 @@ const authConfig = {
     clientId: '1013859959230-hfo0mohq8c02hkea0v56rshdv660b2qp.apps.googleusercontent.com'
 };
 
-const supabaseConfig = {
-    url: 'https://pcyjafpopnjtjqaelycy.supabase.co',
-    anonKey: '' // TODO: paste your Supabase anon (public) key here
-};
 
 const readerState = {
     theme: readerConfig.defaultTheme,
@@ -415,16 +411,6 @@ function decodeJwtProfile(token) {
     }
 }
 
-function getGoogleUid() {
-    if (!authState.idToken) return null;
-    try {
-        const payload = authState.idToken.split('.')[1];
-        const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-        return decoded.sub || null;
-    } catch {
-        return null;
-    }
-}
 
 function updateAuthUI() {
     if (elements.convertLink) {
@@ -1690,19 +1676,13 @@ function toggleSidebar() {
 
 async function loadLibrary() {
     if (!authState.isLoggedIn || !authState.idToken) return;
-    if (!supabaseConfig.anonKey) {
-        renderSidebarState('Supabase anon key not configured.', true);
-        return;
-    }
 
     libraryState.loading = true;
     libraryState.error = null;
     renderSidebarLoading();
 
     try {
-        const googleUid = getGoogleUid();
-        if (!googleUid) throw new Error('Cannot determine Google user ID.');
-        const articles = await fetchSupabaseArticles(googleUid, authState.idToken);
+        const articles = await fetchSupabaseArticles();
         libraryState.articles = articles;
         libraryState.loaded = true;
         renderSidebarArticles(articles);
@@ -1714,41 +1694,27 @@ async function loadLibrary() {
     }
 }
 
-async function fetchSupabaseArticles(googleUid, idToken) {
-    const url = supabaseConfig.url
-        + '/rest/v1/articles'
-        + '?google_uid=eq.' + encodeURIComponent(googleUid)
-        + '&order=added_date.desc'
-        + '&select=id,title,url,site_name,added_date,content_path';
-
-    const resp = await fetch(url, {
-        headers: {
-            'apikey': supabaseConfig.anonKey,
-            'Authorization': 'Bearer ' + idToken
-        }
+async function fetchSupabaseArticles() {
+    const resp = await fetch('/api/library', {
+        headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
-
     if (!resp.ok) {
-        const body = await resp.text().catch(() => '');
-        throw new Error('Failed to load articles (' + resp.status + '). ' + body.slice(0, 120));
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load articles (' + resp.status + ')');
     }
     return resp.json();
 }
 
-async function fetchSignedUrl(contentPath, idToken) {
-    const url = supabaseConfig.url + '/storage/v1/object/sign/article-content/' + contentPath;
-    const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'apikey': supabaseConfig.anonKey,
-            'Authorization': 'Bearer ' + idToken,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ expiresIn: 3600 })
+async function fetchSignedUrl(contentPath) {
+    const resp = await fetch('/api/article?' + new URLSearchParams({ content_path: contentPath }), {
+        headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
-    if (!resp.ok) throw new Error('Storage sign failed (' + resp.status + ')');
+    if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to get article URL (' + resp.status + ')');
+    }
     const data = await resp.json();
-    return data.signedURL || data.signedUrl;
+    return data.signedUrl;
 }
 
 async function openArticleFromLibrary(article) {
@@ -1756,7 +1722,7 @@ async function openArticleFromLibrary(article) {
     setReaderStatus('Loading article…', 'success');
 
     try {
-        const signedUrl = await fetchSignedUrl(article.content_path, authState.idToken);
+        const signedUrl = await fetchSignedUrl(article.content_path);
         const resp = await fetch(signedUrl);
         if (!resp.ok) throw new Error('Failed to fetch article (' + resp.status + ')');
         const html = await resp.text();
