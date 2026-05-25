@@ -1,5 +1,6 @@
 export const config = { runtime: 'edge' };
 
+// build-bust: 2026-05-26
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
