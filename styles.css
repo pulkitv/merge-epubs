@@ -1307,3 +1307,143 @@ footer {
         font-size: 0.75rem;
     }
 }
+
+/* ─── Reader layout (sidebar + content) ─────────────────────────────────── */
+
+.reader-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.reader-card-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ─── Article sidebar ─────────────────────────────────────────────────────── */
+
+.article-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: calc(var(--top-nav-height) + 0.5rem);
+    max-height: calc(100vh - var(--top-nav-height) - 3rem);
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.article-sidebar[hidden] {
+    display: none !important;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0.875rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-background);
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.sidebar-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.sidebar-icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 5px;
+    line-height: 1;
+    transition: background 0.12s, color 0.12s;
+}
+
+.sidebar-icon-btn:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.sidebar-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sidebar-article {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.65rem 0.875rem;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.sidebar-article:hover {
+    background: var(--background);
+}
+
+.sidebar-article:last-child {
+    border-bottom: none;
+}
+
+.sidebar-article-title {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.35;
+    margin-bottom: 0.2rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.sidebar-article-meta {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-state {
+    padding: 1.25rem 0.875rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.5;
+}
+
+.sidebar-state--error {
+    color: var(--error-color);
+}
+
+/* ─── Mobile sidebar ──────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .reader-layout {
+        flex-direction: column;
+    }
+
+    .article-sidebar {
+        width: 100%;
+        position: static;
+        max-height: 40vh;
+    }
+}

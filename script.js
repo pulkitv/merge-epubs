@@ -19,6 +19,11 @@ const authConfig = {
     clientId: '1013859959230-hfo0mohq8c02hkea0v56rshdv660b2qp.apps.googleusercontent.com'
 };
 
+const supabaseConfig = {
+    url: 'https://pcyjafpopnjtjqaelycy.supabase.co',
+    anonKey: '' // TODO: paste your Supabase anon (public) key here
+};
+
 const readerState = {
     theme: readerConfig.defaultTheme,
     fontSize: readerConfig.defaultFontSize,
@@ -47,6 +52,13 @@ const paginationState = {
     enabled: false,
     pages: [],      // HTML string per chapter
     currentPage: 0
+};
+
+const libraryState = {
+    articles: [],
+    loaded: false,
+    loading: false,
+    error: null
 };
 
 // DOM elements
@@ -130,7 +142,13 @@ const elements = {
     editLinkCancelBtn: document.getElementById('editLinkCancelBtn'),
     // Pagination
     paginationTop: document.getElementById('paginationTop'),
-    paginationBottom: document.getElementById('paginationBottom')
+    paginationBottom: document.getElementById('paginationBottom'),
+    // Library sidebar
+    libraryToggleBtn: document.getElementById('libraryToggleBtn'),
+    articleSidebar: document.getElementById('articleSidebar'),
+    sidebarList: document.getElementById('sidebarList'),
+    sidebarRefreshBtn: document.getElementById('sidebarRefreshBtn'),
+    sidebarCloseBtn: document.getElementById('sidebarCloseBtn')
 };
 
 // Initialize
@@ -232,6 +250,7 @@ function setupEventListeners() {
 
     setupEditEventListeners();
     setupPaginationListeners();
+    setupLibraryEventListeners();
 }
 
 function setupRouting() {
@@ -322,6 +341,10 @@ function clearAuthState() {
     authState.profile = null;
     authState.idToken = null;
     localStorage.removeItem('readeasy-auth');
+    libraryState.articles = [];
+    libraryState.loaded = false;
+    libraryState.loading = false;
+    libraryState.error = null;
 }
 
 function setupGoogleAuth() {
@@ -392,6 +415,17 @@ function decodeJwtProfile(token) {
     }
 }
 
+function getGoogleUid() {
+    if (!authState.idToken) return null;
+    try {
+        const payload = authState.idToken.split('.')[1];
+        const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+        return decoded.sub || null;
+    } catch {
+        return null;
+    }
+}
+
 function updateAuthUI() {
     if (elements.convertLink) {
         elements.convertLink.style.display = 'inline-flex';
@@ -424,6 +458,14 @@ function updateAuthUI() {
 
     if (elements.googleSignIn) {
         elements.googleSignIn.style.display = authState.isLoggedIn ? 'none' : 'block';
+    }
+
+    if (elements.libraryToggleBtn) {
+        elements.libraryToggleBtn.style.display = authState.isLoggedIn ? 'inline-flex' : 'none';
+    }
+    // Hide sidebar on logout
+    if (!authState.isLoggedIn && elements.articleSidebar) {
+        elements.articleSidebar.hidden = true;
     }
 }
 
@@ -1620,6 +1662,175 @@ function findCssRuleEnd(css, start) {
         i++;
     }
     return i;
+}
+
+// ─── Library (Supabase article sidebar) ──────────────────────────────────
+
+function openSidebar() {
+    if (!elements.articleSidebar) return;
+    elements.articleSidebar.hidden = false;
+    if (elements.libraryToggleBtn) elements.libraryToggleBtn.classList.add('edit-active');
+    if (!libraryState.loaded && !libraryState.loading) loadLibrary();
+}
+
+function closeSidebar() {
+    if (!elements.articleSidebar) return;
+    elements.articleSidebar.hidden = true;
+    if (elements.libraryToggleBtn) elements.libraryToggleBtn.classList.remove('edit-active');
+}
+
+function toggleSidebar() {
+    if (!elements.articleSidebar) return;
+    if (elements.articleSidebar.hidden) {
+        openSidebar();
+    } else {
+        closeSidebar();
+    }
+}
+
+async function loadLibrary() {
+    if (!authState.isLoggedIn || !authState.idToken) return;
+    if (!supabaseConfig.anonKey) {
+        renderSidebarState('Supabase anon key not configured.', true);
+        return;
+    }
+
+    libraryState.loading = true;
+    libraryState.error = null;
+    renderSidebarLoading();
+
+    try {
+        const googleUid = getGoogleUid();
+        if (!googleUid) throw new Error('Cannot determine Google user ID.');
+        const articles = await fetchSupabaseArticles(googleUid, authState.idToken);
+        libraryState.articles = articles;
+        libraryState.loaded = true;
+        renderSidebarArticles(articles);
+    } catch (err) {
+        libraryState.error = err.message;
+        renderSidebarState(err.message, true);
+    } finally {
+        libraryState.loading = false;
+    }
+}
+
+async function fetchSupabaseArticles(googleUid, idToken) {
+    const url = supabaseConfig.url
+        + '/rest/v1/articles'
+        + '?google_uid=eq.' + encodeURIComponent(googleUid)
+        + '&order=added_date.desc'
+        + '&select=id,title,url,site_name,added_date,content_path';
+
+    const resp = await fetch(url, {
+        headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': 'Bearer ' + idToken
+        }
+    });
+
+    if (!resp.ok) {
+        const body = await resp.text().catch(() => '');
+        throw new Error('Failed to load articles (' + resp.status + '). ' + body.slice(0, 120));
+    }
+    return resp.json();
+}
+
+async function fetchSignedUrl(contentPath, idToken) {
+    const url = supabaseConfig.url + '/storage/v1/object/sign/article-content/' + contentPath;
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': 'Bearer ' + idToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ expiresIn: 3600 })
+    });
+    if (!resp.ok) throw new Error('Storage sign failed (' + resp.status + ')');
+    const data = await resp.json();
+    return data.signedURL || data.signedUrl;
+}
+
+async function openArticleFromLibrary(article) {
+    if (!article?.content_path) return;
+    setReaderStatus('Loading article…', 'success');
+
+    try {
+        const signedUrl = await fetchSignedUrl(article.content_path, authState.idToken);
+        const resp = await fetch(signedUrl);
+        if (!resp.ok) throw new Error('Failed to fetch article (' + resp.status + ')');
+        const html = await resp.text();
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const bodyHtml = doc.body ? doc.body.innerHTML : html;
+
+        const payload = {
+            title: article.title || 'Untitled',
+            byline: '',
+            siteName: article.site_name || '',
+            sourceUrl: article.url || '',
+            html: bodyHtml,
+            isEpub: false
+        };
+
+        renderReaderContent(payload);
+
+        // On mobile, close sidebar after opening article
+        if (window.innerWidth <= 640) closeSidebar();
+
+    } catch (err) {
+        setReaderStatus('Failed to load article: ' + err.message, 'error');
+    }
+}
+
+function renderSidebarLoading() {
+    if (!elements.sidebarList) return;
+    elements.sidebarList.innerHTML = '<div class="sidebar-state">Loading…</div>';
+}
+
+function renderSidebarState(message, isError) {
+    if (!elements.sidebarList) return;
+    elements.sidebarList.innerHTML = `<div class="sidebar-state${isError ? ' sidebar-state--error' : ''}">${escapeHtml(message)}</div>`;
+}
+
+function renderSidebarArticles(articles) {
+    if (!elements.sidebarList) return;
+    if (!articles.length) {
+        elements.sidebarList.innerHTML = '<div class="sidebar-state">No saved articles yet.</div>';
+        return;
+    }
+    elements.sidebarList.innerHTML = articles.map((a, i) => {
+        const date = a.added_date ? new Date(a.added_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        const meta = [a.site_name, date].filter(Boolean).join(' · ');
+        return `<button class="sidebar-article" data-index="${i}" type="button">
+            <span class="sidebar-article-title">${escapeHtml(a.title || 'Untitled')}</span>
+            <span class="sidebar-article-meta">${escapeHtml(meta)}</span>
+        </button>`;
+    }).join('');
+}
+
+function setupLibraryEventListeners() {
+    if (elements.libraryToggleBtn) {
+        elements.libraryToggleBtn.addEventListener('click', toggleSidebar);
+    }
+    if (elements.sidebarCloseBtn) {
+        elements.sidebarCloseBtn.addEventListener('click', closeSidebar);
+    }
+    if (elements.sidebarRefreshBtn) {
+        elements.sidebarRefreshBtn.addEventListener('click', () => {
+            libraryState.loaded = false;
+            loadLibrary();
+        });
+    }
+    if (elements.sidebarList) {
+        elements.sidebarList.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-index]');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.index, 10);
+            const article = libraryState.articles[idx];
+            if (article) openArticleFromLibrary(article);
+        });
+    }
 }
 
 // ─── Pagination ──────────────────────────────────────────────────────────────
