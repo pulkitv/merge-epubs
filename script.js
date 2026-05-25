@@ -1303,7 +1303,7 @@ async function parseAndLoadEpub(file) {
             const fileDir = item.fullPath.includes('/') ? item.fullPath.substring(0, item.fullPath.lastIndexOf('/') + 1) : '';
             const { html: chapterHtml, css: chapterCss } = extractEpubChapter(await f.async('text'), fileDir, assetMap);
             if (chapterCss) allCss += chapterCss + '\n';
-            if (chapterHtml) combinedHtml += `<div class="epub-chapter">${chapterHtml}</div>\n`;
+            if (chapterHtml) combinedHtml += `<div data-rp>${chapterHtml}</div>\n`;
         }
 
         injectEpubStyles(allCss);
@@ -1481,11 +1481,15 @@ function injectEpubStyles(css) {
     position: static !important;
     box-sizing: border-box !important;
 }
-#articleRoot .epub-chapter {
+#articleRoot [data-rp] {
     width: 100% !important;
     max-width: 100% !important;
     float: none !important;
     box-sizing: border-box !important;
+}
+#articleRoot img {
+    max-width: 100% !important;
+    height: auto !important;
 }`;
     document.head.appendChild(style);
 }
@@ -1592,7 +1596,9 @@ function findCssRuleEnd(css, start) {
 
 function splitIntoPages(sanitizedHtml) {
     const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
-    const chapters = Array.from(doc.querySelectorAll('.epub-chapter'));
+    // Use a data attribute we control — EPUB content cannot accidentally contain [data-rp]
+    // so querySelectorAll returns only our wrappers, never any nested EPUB-owned divs
+    const chapters = Array.from(doc.body.querySelectorAll(':scope > [data-rp]'));
     if (chapters.length <= 1) return null;
     return chapters.map((ch) => ch.outerHTML);
 }

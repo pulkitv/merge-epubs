@@ -1192,17 +1192,18 @@ footer {
 
 /* ─── EPUB chapter layout ─────────────────────────────────────────────── */
 
-.epub-chapter {
+[data-rp] {
     margin-bottom: 2.5em;
 }
 
-.epub-chapter + .epub-chapter {
+/* In single-scroll mode (no pagination) separate chapters with a divider */
+[data-rp] + [data-rp] {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 2.5em;
 }
 
 /* Let injected EPUB stylesheet control its own text-indent / spacing */
-#articleRoot .epub-chapter p {
+#articleRoot [data-rp] p {
     text-indent: inherit;
     margin: inherit;
 }
