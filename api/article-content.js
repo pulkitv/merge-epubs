@@ -4,27 +4,23 @@ const SUPABASE_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
 
 export default async function handler(request) {
-    const supabaseSecret = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SECRET;
+    const inlineKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const authHeader = request.headers.get('Authorization') || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!idToken) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401, headers: { 'Content-Type': 'application/json' }
-        });
+
+    let verifiedSub = null;
+    if (idToken) {
+        const verifyResp = await fetch(
+            'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken)
+        );
+        if (verifyResp.ok) {
+            const info = await verifyResp.json();
+            verifiedSub = info.sub || null;
+        }
     }
 
-    const verifyResp = await fetch(
-        'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken)
-    );
-    if (!verifyResp.ok) {
-        return new Response(JSON.stringify({ error: 'Invalid or expired session. Please sign in again.' }), {
-            status: 401, headers: { 'Content-Type': 'application/json' }
-        });
-    }
-    const info = await verifyResp.json();
-    const googleUid = info.sub;
-    if (!googleUid) {
+    if (!verifiedSub) {
         return new Response(JSON.stringify({ error: 'Invalid or expired session. Please sign in again.' }), {
             status: 401, headers: { 'Content-Type': 'application/json' }
         });
@@ -38,13 +34,13 @@ export default async function handler(request) {
             status: 400, headers: { 'Content-Type': 'application/json' }
         });
     }
-    if (!contentPath.startsWith(googleUid + '/')) {
+    if (!contentPath.startsWith(verifiedSub + '/')) {
         return new Response(JSON.stringify({ error: 'Access denied' }), {
             status: 403, headers: { 'Content-Type': 'application/json' }
         });
     }
 
-    if (!supabaseSecret) {
+    if (!inlineKey) {
         return new Response(JSON.stringify({ error: 'Server not configured' }), {
             status: 500, headers: { 'Content-Type': 'application/json' }
         });
@@ -56,8 +52,8 @@ export default async function handler(request) {
     const signResp = await fetch(signUrl, {
         method: 'POST',
         headers: {
-            apikey: supabaseSecret,
-            Authorization: 'Bearer ' + supabaseSecret,
+            apikey: inlineKey,
+            Authorization: 'Bearer ' + inlineKey,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ expiresIn: 3600 })
