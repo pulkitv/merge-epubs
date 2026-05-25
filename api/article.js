@@ -1,8 +1,6 @@
 export const config = { runtime: 'edge' };
 
-// build-bust: 2026-05-26
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -21,6 +19,8 @@ async function verifyGoogleIdToken(idToken) {
 }
 
 export default async function handler(request) {
+    const supabaseSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
     const authHeader = request.headers.get('Authorization') || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
     if (!idToken) return json({ error: 'Unauthorized' }, 401);
@@ -34,22 +34,20 @@ export default async function handler(request) {
     if (!contentPath || contentPath.includes('..') || contentPath.startsWith('/')) {
         return json({ error: 'Invalid content path' }, 400);
     }
-    // Ensure the path belongs to this user — format is {google_uid}/{hash}.html
     if (!contentPath.startsWith(googleUid + '/')) {
         return json({ error: 'Access denied' }, 403);
     }
 
-    if (!SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'Server not configured' }, 500);
+    if (!supabaseSecret) return json({ error: 'Server not configured' }, 500);
 
-    // Encode each path segment, preserving the slash separator
     const encodedPath = contentPath.split('/').map(encodeURIComponent).join('/');
     const signUrl = SUPABASE_URL + '/storage/v1/object/sign/article-content/' + encodedPath;
 
     const signResp = await fetch(signUrl, {
         method: 'POST',
         headers: {
-            apikey: SUPABASE_SERVICE_ROLE_KEY,
-            Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY,
+            apikey: supabaseSecret,
+            Authorization: 'Bearer ' + supabaseSecret,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ expiresIn: 3600 })

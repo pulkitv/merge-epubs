@@ -1,8 +1,7 @@
 export const config = { runtime: 'edge' };
 
-const BUILD_MARKER = 'v3-2026-05-26-diag';
+const BUILD_MARKER = 'v4-2026-05-26-runtime-read';
 const SUPABASE_URL = 'https://pcyjafpopnjtjqaelycy.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -21,6 +20,8 @@ async function verifyGoogleIdToken(idToken) {
 }
 
 export default async function handler(request) {
+    const supabaseSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
     const authHeader = request.headers.get('Authorization') || '';
     const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
     if (!idToken) return json({ error: 'Unauthorized' }, 401);
@@ -28,12 +29,12 @@ export default async function handler(request) {
     const googleUid = await verifyGoogleIdToken(idToken);
     if (!googleUid) return json({ error: 'Invalid or expired session. Please sign in again.' }, 401);
 
-    if (!SUPABASE_SERVICE_ROLE_KEY) {
+    if (!supabaseSecret) {
         return json({
             error: 'Server not configured',
             build: BUILD_MARKER,
-            keyType: typeof SUPABASE_SERVICE_ROLE_KEY,
-            keyLen: SUPABASE_SERVICE_ROLE_KEY ? SUPABASE_SERVICE_ROLE_KEY.length : 0
+            keyType: typeof supabaseSecret,
+            keyLen: supabaseSecret ? supabaseSecret.length : 0
         }, 500);
     }
 
@@ -45,8 +46,8 @@ export default async function handler(request) {
 
     const resp = await fetch(url, {
         headers: {
-            apikey: SUPABASE_SERVICE_ROLE_KEY,
-            Authorization: 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY
+            apikey: supabaseSecret,
+            Authorization: 'Bearer ' + supabaseSecret
         }
     });
 
