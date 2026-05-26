@@ -1776,13 +1776,17 @@ function renderSidebarArticles(articles) {
         elements.sidebarList.innerHTML = '<div class="sidebar-state">No saved articles yet.</div>';
         return;
     }
+    const trashSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
     elements.sidebarList.innerHTML = articles.map((a, i) => {
         const date = a.added_date ? new Date(a.added_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
         const meta = [a.site_name, date].filter(Boolean).join(' · ');
-        return `<button class="sidebar-article" data-index="${i}" type="button">
-            <span class="sidebar-article-title">${escapeHtml(a.title || 'Untitled')}</span>
-            <span class="sidebar-article-meta">${escapeHtml(meta)}</span>
-        </button>`;
+        return `<div class="sidebar-article-row">
+            <button class="sidebar-article" data-index="${i}" data-action="open" type="button">
+                <span class="sidebar-article-title">${escapeHtml(a.title || 'Untitled')}</span>
+                <span class="sidebar-article-meta">${escapeHtml(meta)}</span>
+            </button>
+            <button class="sidebar-article-delete" data-index="${i}" data-action="delete" type="button" aria-label="Delete article" title="Delete">${trashSvg}</button>
+        </div>`;
     }).join('');
 }
 
@@ -1801,12 +1805,38 @@ function setupLibraryEventListeners() {
     }
     if (elements.sidebarList) {
         elements.sidebarList.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-index]');
+            const btn = e.target.closest('[data-action]');
             if (!btn) return;
             const idx = parseInt(btn.dataset.index, 10);
             const article = libraryState.articles[idx];
-            if (article) openArticleFromLibrary(article);
+            if (!article) return;
+            if (btn.dataset.action === 'delete') {
+                deleteArticleFromLibrary(article, idx);
+            } else {
+                openArticleFromLibrary(article);
+            }
         });
+    }
+}
+
+async function deleteArticleFromLibrary(article, index) {
+    if (!article?.id) return;
+    if (!confirm(`Delete "${article.title || 'Untitled'}"? This cannot be undone.`)) return;
+
+    try {
+        const resp = await fetch('/api/saved-delete?' + new URLSearchParams({ article_id: article.id }), {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + authState.idToken }
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to delete (' + resp.status + ')');
+        }
+        libraryState.articles.splice(index, 1);
+        renderSidebarArticles(libraryState.articles);
+        setReaderStatus('Article deleted', 'success');
+    } catch (err) {
+        setReaderStatus('Failed to delete: ' + err.message, 'error');
     }
 }
 
