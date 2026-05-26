@@ -60,11 +60,12 @@ export default async function handler(req, res) {
     }
 
     const signData = await signResp.json();
-    const signedUrl = signData.signedURL || signData.signedUrl;
-    if (!signedUrl) {
+    const relativeSignedUrl = signData.signedURL || signData.signedUrl;
+    if (!relativeSignedUrl) {
         res.status(502).json({ error: 'No signed URL in storage response' });
         return;
     }
 
-    res.status(200).json({ signedUrl });
+    const absoluteSignedUrl = SUPABASE_URL + '/storage/v1' + relativeSignedUrl;
+    res.status(200).json({ signedUrl: absoluteSignedUrl });
 }
