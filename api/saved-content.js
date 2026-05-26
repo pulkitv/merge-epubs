@@ -25,28 +25,46 @@ export default async function handler(req, res) {
         return;
     }
 
+    const contentPath = (req.query && req.query.content_path) || '';
+
+    if (!contentPath || contentPath.includes('..') || contentPath.startsWith('/')) {
+        res.status(400).json({ error: 'Invalid content path' });
+        return;
+    }
+    if (!contentPath.startsWith(googleUid + '/')) {
+        res.status(403).json({ error: 'Access denied' });
+        return;
+    }
+
     if (!supabaseSecret) {
         res.status(500).json({ error: 'Server not configured' });
         return;
     }
 
-    const url = SUPABASE_URL
-        + '/rest/v1/articles'
-        + '?google_uid=eq.' + encodeURIComponent(googleUid)
-        + '&order=added_date.desc'
-        + '&select=id,title,url,site_name,added_date,content_path';
+    const encodedPath = contentPath.split('/').map(encodeURIComponent).join('/');
+    const signUrl = SUPABASE_URL + '/storage/v1/object/sign/article-content/' + encodedPath;
 
-    const resp = await fetch(url, {
+    const signResp = await fetch(signUrl, {
+        method: 'POST',
         headers: {
             apikey: supabaseSecret,
-            Authorization: 'Bearer ' + supabaseSecret
-        }
+            Authorization: 'Bearer ' + supabaseSecret,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ expiresIn: 3600 })
     });
 
-    if (!resp.ok) {
-        res.status(502).json({ error: 'Failed to fetch articles' });
+    if (!signResp.ok) {
+        res.status(502).json({ error: 'Failed to generate download URL' });
         return;
     }
-    const data = await resp.json();
-    res.status(200).json(data);
+
+    const signData = await signResp.json();
+    const signedUrl = signData.signedURL || signData.signedUrl;
+    if (!signedUrl) {
+        res.status(502).json({ error: 'No signed URL in storage response' });
+        return;
+    }
+
+    res.status(200).json({ signedUrl });
 }
