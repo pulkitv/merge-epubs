@@ -565,6 +565,13 @@ function renderReaderContent(payload) {
         // Only strip event handlers; preserve inline styles for fidelity
         renderedHtml = sanitizeEpubHtml(payload.html || '');
         if (elements.readerSource) elements.readerSource.style.display = 'none';
+    } else if (payload.preserveFormatting) {
+        // Library articles arrive pre-sanitized from the extension with user edits
+        // (highlights, colors, font sizes) baked into inline styles. Re-running the
+        // article sanitizer would strip every `style` attribute and erase those edits.
+        renderedHtml = sanitizeEpubHtml(payload.html || '');
+        if (elements.readerSource) elements.readerSource.style.display = '';
+        removeEpubStyles();
     } else {
         renderedHtml = sanitizeArticleHtml(payload.html || '', sourceUrl);
         if (elements.readerSource) elements.readerSource.style.display = '';
@@ -1723,7 +1730,10 @@ async function openArticleFromLibrary(article) {
 
     try {
         const signedUrl = await fetchSignedUrl(article.content_path);
-        const resp = await fetch(signedUrl);
+        const cacheBustedUrl = article.synced_at
+            ? signedUrl + (signedUrl.includes('?') ? '&' : '?') + 'v=' + article.synced_at
+            : signedUrl;
+        const resp = await fetch(cacheBustedUrl);
         if (!resp.ok) throw new Error('Failed to fetch article (' + resp.status + ')');
         const html = await resp.text();
 
@@ -1736,7 +1746,8 @@ async function openArticleFromLibrary(article) {
             siteName: article.site_name || '',
             sourceUrl: article.url || '',
             html: bodyHtml,
-            isEpub: false
+            isEpub: false,
+            preserveFormatting: true
         };
 
         renderReaderContent(payload);

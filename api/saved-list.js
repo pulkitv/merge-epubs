@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         + '/rest/v1/articles'
         + '?google_uid=eq.' + encodeURIComponent(googleUid)
         + '&order=added_date.desc'
-        + '&select=id,title,url,site_name,added_date,content_path';
+        + '&select=id,title,url,site_name,added_date,synced_at,content_path';
 
     const resp = await fetch(url, {
         headers: {
