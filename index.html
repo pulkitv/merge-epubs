@@ -139,6 +139,7 @@
                             <button id="epubUploadBtn" class="btn-secondary" type="button">📂 Open</button>
                             <button id="downloadEpub" class="btn-success" type="button" disabled>📥 EPUB</button>
                             <button id="editToggleBtn" class="btn-secondary edit-toggle-btn" type="button" disabled>Edit</button>
+                            <button id="versionHistoryBtn" class="btn-secondary version-history-btn" type="button" style="display:none;" title="Version history">Versions</button>
                         </div>
                     </div>
 
@@ -270,6 +271,19 @@
                             <div class="edit-modal-actions">
                                 <button id="editLinkInsertBtn" class="btn-success"   type="button">Apply</button>
                                 <button id="editLinkCancelBtn" class="btn-secondary" type="button">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Version history modal -->
+                    <div id="versionHistoryModal" class="edit-modal-overlay version-modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="versionModalTitle">
+                        <div class="edit-modal version-modal">
+                            <div class="version-modal-header">
+                                <h3 id="versionModalTitle" class="edit-modal-title">Version History</h3>
+                                <button id="versionModalClose" class="version-modal-close" type="button" aria-label="Close">&times;</button>
+                            </div>
+                            <div id="versionList" class="version-list">
+                                <div class="version-state">Loading…</div>
                             </div>
                         </div>
                     </div>

@@ -144,7 +144,13 @@ const elements = {
     articleSidebar: document.getElementById('articleSidebar'),
     sidebarList: document.getElementById('sidebarList'),
     sidebarRefreshBtn: document.getElementById('sidebarRefreshBtn'),
-    sidebarCloseBtn: document.getElementById('sidebarCloseBtn')
+    sidebarCloseBtn: document.getElementById('sidebarCloseBtn'),
+
+    // Version history
+    versionHistoryBtn: document.getElementById('versionHistoryBtn'),
+    versionHistoryModal: document.getElementById('versionHistoryModal'),
+    versionModalClose: document.getElementById('versionModalClose'),
+    versionList: document.getElementById('versionList')
 };
 
 // Initialize
@@ -247,6 +253,7 @@ function setupEventListeners() {
     setupEditEventListeners();
     setupPaginationListeners();
     setupLibraryEventListeners();
+    setupVersionHistoryListeners();
 }
 
 function setupRouting() {
@@ -609,6 +616,23 @@ function renderReaderContent(payload) {
     // Enable edit button; exit any active edit session cleanly
     if (elements.editToggleBtn) elements.editToggleBtn.disabled = false;
     if (editorState.active) exitEditMode(false);
+
+    // Show the Versions button only for library articles (those with an articleId)
+    updateVersionButtonLabel();
+}
+
+function updateVersionButtonLabel() {
+    const btn = elements.versionHistoryBtn;
+    if (!btn) return;
+    const a = readerState.currentArticle;
+    if (a?.articleId) {
+        const v = a.versionCount;
+        btn.textContent = v && v > 0 ? 'v' + v : 'Versions';
+        btn.style.display = '';
+        btn.disabled = false;
+    } else {
+        btn.style.display = 'none';
+    }
 }
 
 function convertPlainTextToHtml(text) {
@@ -630,6 +654,17 @@ function escapeHtml(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+// Byte-identical port of the extension's content hash (background.js:393-400).
+// Output is 1–8 hex chars (no zero padding); operates on UTF-16 code units.
+function simpleHash(str) {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+        hash |= 0;
+    }
+    return (hash >>> 0).toString(16);
 }
 
 function sanitizeArticleHtml(html, sourceUrl) {
@@ -1735,10 +1770,10 @@ async function openArticleFromLibrary(article) {
             : signedUrl;
         const resp = await fetch(cacheBustedUrl);
         if (!resp.ok) throw new Error('Failed to fetch article (' + resp.status + ')');
-        const html = await resp.text();
+        const rawHtml = await resp.text();
 
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const bodyHtml = doc.body ? doc.body.innerHTML : html;
+        const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+        const bodyHtml = doc.body ? doc.body.innerHTML : rawHtml;
 
         const payload = {
             title: article.title || 'Untitled',
@@ -1747,16 +1782,104 @@ async function openArticleFromLibrary(article) {
             sourceUrl: article.url || '',
             html: bodyHtml,
             isEpub: false,
-            preserveFormatting: true
+            preserveFormatting: true,
+            // Supabase identity — used by save / versions / restore flows
+            articleId: article.id,
+            contentPath: article.content_path,
+            syncedAt: article.synced_at,
+            versionCount: article.version_count ?? null,
+            // Change detection: hash of raw stored file (matches articles.content_hash exactly)
+            // plus snapshots for client-side dirty checks.
+            rawSavedHtml: rawHtml,
+            rawSavedHash: simpleHash(rawHtml),
+            initialBodyHtml: bodyHtml, // overwritten below to the browser-reserialized form
+            _initialTitle: article.title || 'Untitled',
+            _initialSiteName: article.site_name || ''
         };
 
         renderReaderContent(payload);
+
+        // Capture the browser-serialized form (what the editor will read on save) so
+        // a no-edit Save can be detected client-side and skip the network round-trip.
+        if (elements.articleRoot) {
+            payload.initialBodyHtml = elements.articleRoot.innerHTML;
+            // Also keep currentArticle.html in sync with this serialized form so the
+            // editor reads from and writes to the same representation.
+            payload.html = elements.articleRoot.innerHTML;
+        }
 
         // On mobile, close sidebar after opening article
         if (window.innerWidth <= 640) closeSidebar();
 
     } catch (err) {
         setReaderStatus('Failed to load article: ' + err.message, 'error');
+    }
+}
+
+async function saveArticleVersion() {
+    const a = readerState.currentArticle;
+    if (!a?.articleId || !authState.idToken) return;
+
+    // Client-side dirty check: if the editor body matches what we loaded and the title
+    // / siteName are unchanged, no save is needed.
+    const bodyUnchanged = a.html === a.initialBodyHtml;
+    // titleInitial / siteNameInitial captured when the article was loaded — fall back to
+    // current values so legacy payloads don't false-positive as "changed".
+    const titleUnchanged = (a._initialTitle ?? a.title) === a.title;
+    const siteUnchanged = (a._initialSiteName ?? a.siteName) === a.siteName;
+    if (bodyUnchanged && titleUnchanged && siteUnchanged) {
+        setReaderStatus('No changes to save.', 'success');
+        return;
+    }
+
+    setReaderStatus('Saving…', 'success');
+    try {
+        const resp = await fetch('/api/saved-save', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + authState.idToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                article_id: a.articleId,
+                title: a.title,
+                site_name: a.siteName,
+                html: a.html
+            })
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || 'Save failed (' + resp.status + ')');
+        }
+        const data = await resp.json();
+
+        a.versionCount = data.version;
+        a.syncedAt = data.synced_at;
+        if (data.content_path) a.contentPath = data.content_path;
+        a.initialBodyHtml = a.html;
+        a._initialTitle = a.title;
+        a._initialSiteName = a.siteName;
+
+        if (data.unchanged && data.titleUpdated) {
+            setReaderStatus('Title updated.', 'success');
+        } else if (data.unchanged) {
+            setReaderStatus('No changes to save.', 'success');
+        } else {
+            setReaderStatus('Saved as v' + data.version + '.', 'success');
+        }
+
+        updateVersionButtonLabel();
+
+        // Reflect new state in the library sidebar entry without re-fetching everything
+        const idx = libraryState.articles.findIndex((x) => x.id === a.articleId);
+        if (idx >= 0) {
+            libraryState.articles[idx].version_count = data.version;
+            libraryState.articles[idx].synced_at = data.synced_at;
+            libraryState.articles[idx].title = a.title;
+            if (data.content_path) libraryState.articles[idx].content_path = data.content_path;
+        }
+    } catch (err) {
+        setReaderStatus('Save failed: ' + err.message, 'error');
     }
 }
 
@@ -1838,6 +1961,137 @@ async function deleteArticleFromLibrary(article, index) {
     } catch (err) {
         setReaderStatus('Failed to delete: ' + err.message, 'error');
     }
+}
+
+// ─── Version History ─────────────────────────────────────────────────────────
+
+async function openVersionHistory() {
+    const a = readerState.currentArticle;
+    if (!a?.articleId) return;
+    if (!elements.versionHistoryModal || !elements.versionList) return;
+
+    elements.versionHistoryModal.hidden = false;
+    elements.versionList.innerHTML = '<div class="version-state">Loading…</div>';
+
+    try {
+        const resp = await fetch('/api/saved-versions?' + new URLSearchParams({ article_id: a.articleId }), {
+            headers: { 'Authorization': 'Bearer ' + authState.idToken }
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to load versions (' + resp.status + ')');
+        }
+        const versions = await resp.json();
+        renderVersionList(versions);
+    } catch (err) {
+        elements.versionList.innerHTML =
+            '<div class="version-state version-state--error">' + escapeHtml(err.message) + '</div>';
+    }
+}
+
+function renderVersionList(versions) {
+    if (!elements.versionList) return;
+    if (!versions.length) {
+        elements.versionList.innerHTML = '<div class="version-state">No version history yet.</div>';
+        return;
+    }
+    const currentVN = readerState.currentArticle?.versionCount;
+    elements.versionList.innerHTML = versions.map((v) => {
+        const isCurrent = v.version_number === currentVN;
+        const date = v.created_at ? new Date(v.created_at).toLocaleString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit'
+        }) : '';
+        const source = v.saved_from === 'chrome_extension' ? 'Extension' : 'Web App';
+        const tags = [date, source];
+        if (v.is_original_capture) tags.push('Original capture');
+        const meta = tags.filter(Boolean).join(' · ');
+        const label = 'v' + v.version_number + (isCurrent ? ' (current)' : '');
+        const restoreBtn = isCurrent
+            ? ''
+            : '<button class="version-restore-btn" data-version-id="' + escapeHtml(v.id) + '" data-version-number="' + v.version_number + '" type="button">Restore</button>';
+        return '<div class="version-row' + (isCurrent ? ' version-row--current' : '') + '">'
+            + '<div class="version-row-main">'
+            + '<span class="version-label">' + escapeHtml(label) + '</span>'
+            + '<span class="version-meta">' + escapeHtml(meta) + '</span>'
+            + '</div>'
+            + restoreBtn
+            + '</div>';
+    }).join('');
+}
+
+function closeVersionModal() {
+    if (elements.versionHistoryModal) elements.versionHistoryModal.hidden = true;
+}
+
+async function restoreVersion(versionId, versionNumber) {
+    const a = readerState.currentArticle;
+    if (!a?.articleId || !versionId) return;
+    if (!confirm('Restore v' + versionNumber + '? A new version will be created with this content.')) return;
+
+    setReaderStatus('Restoring v' + versionNumber + '…', 'success');
+    try {
+        const resp = await fetch('/api/saved-restore', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + authState.idToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ article_id: a.articleId, version_id: versionId })
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.error || 'Restore failed (' + resp.status + ')');
+        }
+        const data = await resp.json();
+        closeVersionModal();
+
+        // Reflect new state in the library sidebar so the subsequent re-load uses fresh metadata
+        const idx = libraryState.articles.findIndex((x) => x.id === a.articleId);
+        if (idx >= 0) {
+            libraryState.articles[idx].version_count = data.version;
+            libraryState.articles[idx].synced_at = data.synced_at;
+            if (data.content_path) libraryState.articles[idx].content_path = data.content_path;
+            await openArticleFromLibrary(libraryState.articles[idx]);
+        }
+
+        if (data.unchanged) {
+            setReaderStatus('Already at this version.', 'success');
+        } else {
+            setReaderStatus('Restored — now at v' + data.version + '.', 'success');
+        }
+    } catch (err) {
+        setReaderStatus('Restore failed: ' + err.message, 'error');
+    }
+}
+
+function setupVersionHistoryListeners() {
+    if (elements.versionHistoryBtn) {
+        elements.versionHistoryBtn.addEventListener('click', openVersionHistory);
+    }
+    if (elements.versionModalClose) {
+        elements.versionModalClose.addEventListener('click', closeVersionModal);
+    }
+    if (elements.versionHistoryModal) {
+        // Click on overlay (outside the modal card) closes
+        elements.versionHistoryModal.addEventListener('click', (e) => {
+            if (e.target === elements.versionHistoryModal) closeVersionModal();
+        });
+    }
+    if (elements.versionList) {
+        elements.versionList.addEventListener('click', (e) => {
+            const btn = e.target.closest('.version-restore-btn');
+            if (!btn) return;
+            const id = btn.dataset.versionId;
+            const num = parseInt(btn.dataset.versionNumber, 10);
+            if (id) restoreVersion(id, num);
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && elements.versionHistoryModal && !elements.versionHistoryModal.hidden) {
+            closeVersionModal();
+        }
+    });
 }
 
 // ─── Pagination ──────────────────────────────────────────────────────────────
@@ -2036,6 +2290,13 @@ function exitEditMode(save) {
     editorState.active = false;
     editorState.savedRange = null;
     editorState.snapshot = null;
+
+    // Library articles (those originally loaded from Supabase) get their edits synced
+    // back to the cloud. Other reader payloads (Convert tab, postMessage from extension,
+    // local EPUB upload) have no articleId and saveArticleVersion early-returns.
+    if (save && readerState.currentArticle?.articleId && authState.isLoggedIn) {
+        saveArticleVersion();
+    }
 }
 
 function execFormat(command, value) {

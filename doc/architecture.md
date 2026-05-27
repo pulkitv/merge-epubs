@@ -83,19 +83,20 @@ No frameworks, no bundlers, no build step on the frontend. The frontend is three
 │  │   Sends article via window.postMessage     │  │
 │  └────────────────────────────────────────────┘  │
 └────┬─────────────────────┬───────────────────────┘
-     │ POST /combine-epubs │ GET /api/saved-list
-     │ (Merge view)        │ GET /api/saved-content
+     │ POST /combine-epubs │ GET    /api/saved-list
+     │ (Merge view)        │ GET    /api/saved-content
+     │                     │ DELETE /api/saved-delete
      │                     │ (Reader view, with Bearer token)
      │                     │
 ┌────▼─────────────────┐  ┌▼─────────────────────────────┐
 │  EPUB Combiner API   │  │  Vercel Serverless Functions  │
 │  (Render.com)        │  │  api/saved-list.js            │
 │  Express.js          │  │  api/saved-content.js         │
-│                      │  │                               │
-│  GET  /config        │  │  Verify Google idToken via    │
-│  GET  /health        │  │  oauth2.googleapis.com/       │
-│  POST /combine-epubs │  │    tokeninfo                  │
-└──────────────────────┘  │            │                  │
+│                      │  │  api/saved-delete.js          │
+│  GET  /config        │  │                               │
+│  GET  /health        │  │  Verify Google idToken via    │
+│  POST /combine-epubs │  │  oauth2.googleapis.com/       │
+└──────────────────────┘  │    tokeninfo                  │
                           └────────────┼──────────────────┘
                                        │ Service role key
                           ┌────────────▼──────────────────┐
@@ -118,7 +119,8 @@ merge-epubs/
 ├── package.json                      # {"type":"module"} — enables ESM in api/ serverless functions
 ├── api/                              # Vercel serverless functions (Node.js runtime)
 │   ├── saved-list.js                 # Lists current user's saved articles from Supabase
-│   ├── saved-content.js              # Returns a signed URL for fetching one article's HTML
+│   ├── saved-content.js              # Returns an absolute signed URL for fetching one article's HTML
+│   ├── saved-delete.js               # Deletes an article row + storage object for the signed-in user
 │   ├── articles.js                   # (Legacy/duplicate of saved-list — kept for compatibility)
 │   ├── article-content.js            # (Legacy/duplicate of saved-content)
 │   └── debug.js                      # Diagnostic endpoint for env-var visibility
@@ -483,7 +485,12 @@ setupReaderMessaging()   // Attaches window 'message' event listener
 handleReaderMessage(e)   // Validates origin, checks payload type, calls renderReaderContent()
 renderReaderContent(p)   // Populates title/byline/source, sanitizes + injects HTML,
                          // resets paginationState, paginates if payload.isEpub yields ≥2 pages,
-                         // stores payload in readerState.currentArticle, enables download button
+                         // stores payload in readerState.currentArticle, enables download button.
+                         // Sanitizer choice depends on payload flags:
+                         //   isEpub → sanitizeEpubHtml (preserves style)
+                         //   preserveFormatting → sanitizeEpubHtml (preserves user highlights/colors
+                         //     baked in by the extension)
+                         //   otherwise → sanitizeArticleHtml (strips style — for fresh extension feeds)
 notifyExtensionReady()   // Sends 'readeasy-ready' to window.opener for handshake
 setReaderStatus(msg, t)  // Updates #readerStatus element with message and CSS class
 toggleReaderTheme()      // Cycles through light → dark → warm, calls setReaderTheme()
@@ -537,11 +544,17 @@ openSidebar()/closeSidebar()/toggleSidebar()  // UI visibility + lazy first-load
 async loadLibrary()        // Calls fetchSupabaseArticles(), updates libraryState
 async fetchSupabaseArticles()
                            // GET /api/saved-list with Bearer idToken
-async fetchSignedUrl(path) // GET /api/saved-content?content_path=…
+async fetchSignedUrl(path) // GET /api/saved-content?content_path=… → absolute Supabase URL
 async openArticleFromLibrary(article)
-                           // Fetches signed URL, extracts <body>, calls renderReaderContent()
-renderSidebarArticles(a)   // Renders the list of <button.sidebar-article> entries
+                           // Fetches signed URL (with ?v=synced_at cache buster), extracts <body>,
+                           // calls renderReaderContent({…, preserveFormatting: true}) so user
+                           // highlights/colors/font sizes survive sanitization
+async deleteArticleFromLibrary(article, idx)
+                           // Confirm() prompt → DELETE /api/saved-delete?article_id=…,
+                           // splices from libraryState.articles on success
+renderSidebarArticles(a)   // Renders each entry as a .sidebar-article-row (open button + trash button)
 setupLibraryEventListeners()
+                           // Delegates click via data-action="open"|"delete" on the list
 ```
 
 ### HTML Sanitization
@@ -784,11 +797,18 @@ The `[data-rp]` attribute is owned by the reader's own EPUB wrapping step — EP
 
 ### 8. Library Sidebar (Reader)
 
-**Functions**: `openSidebar()`, `closeSidebar()`, `toggleSidebar()`, `loadLibrary()`, `fetchSupabaseArticles()`, `fetchSignedUrl()`, `openArticleFromLibrary()`, `renderSidebarArticles()`, `setupLibraryEventListeners()`
+**Functions**: `openSidebar()`, `closeSidebar()`, `toggleSidebar()`, `loadLibrary()`, `fetchSupabaseArticles()`, `fetchSignedUrl()`, `openArticleFromLibrary()`, `deleteArticleFromLibrary()`, `renderSidebarArticles()`, `setupLibraryEventListeners()`
 
-Signed-in users see a Library button in the reader toolbar. Clicking it opens a sidebar listing their saved articles fetched from Supabase via `/api/saved-list`. Clicking an article calls `/api/saved-content` to obtain a 1-hour signed URL, fetches the HTML directly from Supabase Storage, extracts `<body>`, and feeds it through `renderReaderContent()` as a non-EPUB payload. On screens ≤ 640 px wide the sidebar auto-closes after opening an article to free up reading space.
+Signed-in users see a Library button in the reader toolbar. Clicking it opens a sidebar listing their saved articles fetched from Supabase via `/api/saved-list`. Each row has two actions:
+
+- **Open** — calls `/api/saved-content` to obtain an absolute 1-hour signed URL, fetches the HTML directly from Supabase Storage (with `?v=synced_at` appended as a cache buster), extracts `<body>`, and feeds it through `renderReaderContent()` with `preserveFormatting: true` so user highlights, font colors, and font sizes from the extension's editor survive into the web reader.
+- **Delete** (trash icon, revealed on row hover or always visible on mobile) — confirms with the user, then `DELETE /api/saved-delete?article_id=…` removes both the storage object and the database row. On success the row is spliced from `libraryState.articles` and re-rendered.
+
+On screens ≤ 640 px wide the sidebar auto-closes after opening an article to free up reading space.
 
 The list is fetched lazily on first sidebar open; subsequent opens reuse `libraryState.articles`. The Refresh button forces a re-fetch by flipping `libraryState.loaded = false`.
+
+**Why a separate sanitizer path for library articles?** The extension already sanitizes HTML on save (scripts / event handlers / `<iframe>` stripped) and the resulting file contains user formatting as inline `style` attributes. Re-running the default `sanitizeArticleHtml()` (which strips every `style`) would erase all highlights and colors. The `preserveFormatting` flag routes the payload through `sanitizeEpubHtml()` instead, which only strips scripts and event handlers — see `doc/WEBAPP_INTEGRATION.md` for the integration contract.
 
 ---
 
@@ -833,7 +853,7 @@ fetch(`${state.apiUrl}/combine-epubs`, { method: 'POST', body: formData });
 
 ### Library API (Vercel serverless, same origin)
 
-These two endpoints back the Library sidebar in the Reader view. Both require a valid Google ID token in `Authorization: Bearer …`; the function verifies it against `https://oauth2.googleapis.com/tokeninfo` and uses the `sub` claim as `google_uid` for row scoping.
+These three endpoints back the Library sidebar in the Reader view. All require a valid Google ID token in `Authorization: Bearer …`; the function verifies it against `https://oauth2.googleapis.com/tokeninfo` and uses the `sub` claim as `google_uid` for row scoping.
 
 **GET /api/saved-list** — returns the signed-in user's saved articles
 ```javascript
@@ -847,11 +867,13 @@ Response (array, ordered by `added_date desc`):
     "title": "Article Title",
     "url": "https://source.example/article",
     "site_name": "Source",
-    "added_date": "2026-05-20T12:34:56Z",
+    "added_date": 1779779290094,
+    "synced_at": 1779779744435,
     "content_path": "<google_uid>/<article>.html"
   }
 ]
 ```
+`synced_at` is the extension's last write timestamp; the frontend appends it as `?v=…` to the signed URL as a cache buster after edits.
 
 **GET /api/saved-content?content_path=…** — returns a 1-hour Supabase Storage signed URL for one article
 ```javascript
@@ -862,14 +884,28 @@ Response:
 ```json
 { "signedUrl": "https://pcyjafpopnjtjqaelycy.supabase.co/storage/v1/object/sign/article-content/…" }
 ```
+The function prepends `SUPABASE_URL + '/storage/v1'` to the path Supabase returns, so the frontend receives an absolute URL and can fetch it directly without resolving against its own origin.
+
+**DELETE /api/saved-delete?article_id=…** — deletes one article (storage object + row) for the signed-in user
+```javascript
+fetch('/api/saved-delete?article_id=' + encodeURIComponent(article.id),
+      { method: 'DELETE', headers: { Authorization: 'Bearer ' + idToken } })
+```
+Response:
+```json
+{ "deleted": true }
+```
+Looks up the row by `id AND google_uid` (returns 404 if not owned by caller), deletes the storage object at `content_path` best-effort, then deletes the row. `article_id` must match `/^[0-9a-f-]+$/i` (UUID shape).
 
 **Library API error codes**:
 
 | Status | Meaning |
 |--------|---------|
+| 400 | Missing or unsafe `content_path` (contains `..` or starts with `/`) / invalid `article_id` |
 | 401 | Missing/invalid/expired Google ID token |
 | 403 | `content_path` does not start with caller's `google_uid` (cross-user access blocked) |
-| 400 | Missing or unsafe `content_path` (contains `..` or starts with `/`) |
+| 404 | `article_id` not found for this user (saved-delete) |
+| 405 | Wrong HTTP method (saved-delete requires DELETE) |
 | 500 | Server missing `SUPABASE_SERVICE_ROLE_KEY` env var |
 | 502 | Upstream Supabase error |
 
@@ -1078,8 +1114,10 @@ No `vercel.json` required (was removed Feb 2026 after proxy was dropped).
 - **XHTML conversion**: `convertToXhtml()` strips all event handlers, `style`, and `data-*` attributes before embedding HTML into EPUB
 - **Google JWT validation**:
   - Client-side: decoded with `atob()` to display the user's name/avatar (no signature check)
-  - Server-side: `/api/saved-list` and `/api/saved-content` verify every request against `https://oauth2.googleapis.com/tokeninfo`; the verified `sub` claim is used as `google_uid` to scope Supabase queries
-- **Cross-user content access blocked**: `/api/saved-content` rejects any `content_path` that does not begin with the caller's verified `google_uid` (HTTP 403), and also rejects paths containing `..` or starting with `/` (HTTP 400)
+  - Server-side: `/api/saved-list`, `/api/saved-content`, and `/api/saved-delete` verify every request against `https://oauth2.googleapis.com/tokeninfo`; the verified `sub` claim is used as `google_uid` to scope Supabase queries
+- **Cross-user content access blocked**:
+  - `/api/saved-content` rejects any `content_path` that does not begin with the caller's verified `google_uid` (HTTP 403), and also rejects paths containing `..` or starting with `/` (HTTP 400)
+  - `/api/saved-delete` looks up the row by `id AND google_uid` (returns 404 if not owned by the caller) and only deletes the storage object if its `content_path` starts with `google_uid + '/'` and contains no `..`
 - **Supabase signed URLs**: storage objects are private; the API returns a per-request signed URL with `expiresIn: 3600`
 - **File storage**: combiner API stores nothing server-side — it processes in memory and streams the result back immediately
 - **No analytics, no data collection**
@@ -1167,8 +1205,9 @@ See the sprint logs in `doc/` for planned work and carry-overs.
 | `script.js` | All frontend logic — state, API calls, auth, reader, edit mode, EPUB parsing, pagination, library |
 | `readeasy-postmessage-listener.js` | Standalone postMessage helper for extension integration |
 | `package.json` | `{"type":"module"}` — enables ESM in `api/` serverless functions |
-| `api/saved-list.js` | Vercel function: returns the signed-in user's saved articles from Supabase |
-| `api/saved-content.js` | Vercel function: returns a 1-hour signed URL for a single article's content |
+| `api/saved-list.js` | Vercel function: returns the signed-in user's saved articles from Supabase (includes `synced_at`) |
+| `api/saved-content.js` | Vercel function: returns a 1-hour absolute signed URL for a single article's content |
+| `api/saved-delete.js` | Vercel function: deletes one article (storage object + row) for the signed-in user |
 | `api/articles.js` / `api/article-content.js` | Legacy duplicates of the saved-* pair |
 | `api/debug.js` | Diagnostic endpoint for env-var visibility |
 | `CLAUDE.md` | AI-assistant guidance file (project conventions, key files, hot paths) |

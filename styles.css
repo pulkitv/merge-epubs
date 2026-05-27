@@ -1190,6 +1190,122 @@ footer {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* ─── Version history modal ────────────────────────────────────────────── */
+
+.version-modal {
+    max-width: 480px;
+    max-height: 80vh;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+}
+
+.version-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.version-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--reader-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.version-modal-close:hover {
+    color: var(--reader-text);
+}
+
+.version-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0.25rem 0;
+}
+
+.version-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.version-row:last-child {
+    border-bottom: none;
+}
+
+.version-row--current {
+    background: rgba(79, 70, 229, 0.08);
+    border-left: 3px solid var(--primary-color);
+}
+
+.version-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.version-label {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--reader-text);
+}
+
+.version-meta {
+    font-size: 0.75rem;
+    color: var(--reader-muted);
+}
+
+.version-restore-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--reader-text);
+    font-family: inherit;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.version-restore-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary-color);
+}
+
+.version-state {
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    color: var(--reader-muted);
+    font-size: 0.9rem;
+}
+
+.version-state--error {
+    color: var(--error-color);
+}
+
+.version-history-btn {
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+    .version-modal {
+        max-width: 100%;
+        max-height: 90vh;
+    }
+    .version-row {
+        padding: 0.6rem 1rem;
+    }
+}
+
 /* ─── EPUB chapter layout ─────────────────────────────────────────────── */
 
 [data-rp] {
@@ -1410,26 +1526,16 @@ footer {
     padding: 0 0.7rem;
     cursor: pointer;
     color: var(--text-secondary);
-    opacity: 0;
-    transition: opacity 0.12s, color 0.12s;
+    transition: color 0.12s, background 0.12s;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.sidebar-article-row:hover .sidebar-article-delete,
-.sidebar-article-delete:focus-visible {
-    opacity: 1;
+    flex-shrink: 0;
 }
 
 .sidebar-article-delete:hover {
     color: var(--error-color);
-}
-
-@media (max-width: 640px) {
-    .sidebar-article-delete {
-        opacity: 1;
-    }
+    background: var(--background);
 }
 
 .sidebar-article-title {
