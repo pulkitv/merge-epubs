@@ -47,7 +47,8 @@ async function verifyGoogleIdToken(idToken) {
     );
     if (!resp.ok) return null;
     const info = await resp.json();
-    return info.sub || null;
+    if (!info.sub) return null;
+    return { sub: info.sub, email: info.email || null };
 }
 
 function authHeaders(secret, extra) {
@@ -89,11 +90,13 @@ export default async function handler(req, res) {
         return;
     }
 
-    const googleUid = await verifyGoogleIdToken(idToken);
-    if (!googleUid) {
+    const identity = await verifyGoogleIdToken(idToken);
+    if (!identity) {
         res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
         return;
     }
+    const googleUid = identity.sub;
+    const googleEmail = identity.email;
 
     if (!supabaseSecret) {
         res.status(500).json({ error: 'Server not configured' });
@@ -138,6 +141,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
             id: articleId,
             google_uid: googleUid,
+            google_email: googleEmail,
             title,
             url,
             site_name: 'Web App',
@@ -149,7 +153,12 @@ export default async function handler(req, res) {
         })
     });
     if (!articleInsertResp.ok) {
-        res.status(502).json({ error: 'Failed to create article row' });
+        const detail = await articleInsertResp.text().catch(() => '');
+        res.status(502).json({
+            error: 'Failed to create article row',
+            status: articleInsertResp.status,
+            detail: detail.slice(0, 500)
+        });
         return;
     }
     const inserted = await articleInsertResp.json();
