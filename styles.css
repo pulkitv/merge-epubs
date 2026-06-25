@@ -872,8 +872,8 @@ footer .footer-links a:hover {
     position: sticky;
     top: 7.5rem; /* fallback: --top-nav-height (3.5rem) + reader-tools (~4rem) */
     z-index: 4;
-    background: var(--reader-surface);
-    border-bottom: 1px solid var(--reader-divider);
+    background: #ffffff;
+    border-bottom: 1px solid #eef0f4;
     padding: 0.5rem 1.25rem;
     display: flex;
     align-items: center;
@@ -894,9 +894,9 @@ footer .footer-links a:hover {
     position: sticky;
     top: 10rem; /* fallback: toolbar top + toolbar height (~2.5rem) */
     z-index: 3;
-    background: var(--reader-surface);
-    border-bottom: 1px solid var(--reader-divider);
-    padding: 0.4rem 1.25rem;
+    background: #ffffff;
+    border-bottom: 1px solid #eef0f4;
+    padding: 0.5rem 1.25rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -928,7 +928,7 @@ footer .footer-links a:hover {
 .edit-tool-sep {
     width: 1px;
     height: 1.2rem;
-    background: var(--reader-divider);
+    background: #e5e7eb;
     flex-shrink: 0;
     margin: 0 0.2rem;
 }
@@ -941,8 +941,8 @@ footer .footer-links a:hover {
     gap: 0.2rem;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 5px;
-    color: var(--reader-text);
+    border-radius: 6px;
+    color: #374151;
     cursor: pointer;
     font-size: 0.8rem;
     font-family: inherit;
@@ -956,8 +956,8 @@ footer .footer-links a:hover {
 }
 
 .edit-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: #f3f4f6;
+    border-color: #e5e7eb;
 }
 
 /* Active formatting state at cursor */
@@ -1006,10 +1006,10 @@ footer .footer-links a:hover {
 
 /* Font size select */
 .edit-select {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 5px;
-    color: var(--reader-text);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    color: #374151;
     font-size: 0.8rem;
     font-family: inherit;
     padding: 0.28rem 0.4rem;
@@ -1018,8 +1018,8 @@ footer .footer-links a:hover {
 }
 
 .edit-select option {
-    background: var(--reader-surface);
-    color: var(--reader-text);
+    background: #ffffff;
+    color: #374151;
 }
 
 /* Inline highlight palette — swatches always visible in toolbar */
@@ -1033,7 +1033,7 @@ footer .footer-links a:hover {
 .edit-hl-label {
     font-size: 0.7rem;
     font-weight: 700;
-    color: var(--reader-muted);
+    color: #6b7280;
     padding: 0 0.15rem;
     flex-shrink: 0;
     user-select: none;
@@ -1053,7 +1053,7 @@ footer .footer-links a:hover {
 
 .edit-hl-preset:hover {
     transform: scale(1.2);
-    border-color: rgba(255, 255, 255, 0.55);
+    border-color: rgba(0, 0, 0, 0.25);
 }
 
 .edit-hl-preset.edit-hl-selected {
@@ -1067,11 +1067,63 @@ footer .footer-links a:hover {
     min-width: unset;
 }
 
-/* Contenteditable active-field indicator */
+/* Whole reader card becomes a white document workspace while editing, so the
+   editing surfaces, toolbar, and scroll area read as one clean light space
+   regardless of the active reader theme. */
+.reader-card.reader-editing .reader-scroll {
+    background: #ffffff;
+}
+
+.reader-card.reader-editing .reader-meta {
+    --reader-text: #1f2937;
+    --reader-muted: #6b7280;
+}
+
+/* Contenteditable regions — clean white editing surfaces.
+   Each of title / byline / body becomes a soft white card with a focus ring,
+   instead of the old dashed outline. Local theme-var overrides keep text dark
+   and readable on white even when the reader is in dark/warm mode, while user
+   inline color/highlight styles (higher specificity) still win. */
 .edit-active-field {
-    outline: 2px dashed var(--primary-color) !important;
-    outline-offset: 3px;
-    border-radius: 3px;
+    --reader-text: #1f2937;
+    --reader-muted: #6b7280;
+    --reader-bg: #ffffff;
+    --reader-link: var(--primary-color);
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.7rem 1.1rem;
+    margin-bottom: 0.9rem;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.edit-active-field:focus,
+.edit-active-field:focus-visible {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14);
+}
+
+/* Keep list markers inside the editing surface (the old overflow bug came from
+   zero internal padding — markers rendered in the margin, outside the box). */
+.edit-active-field ul,
+.edit-active-field ol {
+    padding-left: 1.6rem;
+    margin-left: 0;
+    list-style-position: outside;
+}
+
+/* Empty-field hints */
+#readerTitle.edit-active-field:empty::before {
+    content: 'Add a title…';
+    color: #9ca3af;
+}
+
+#readerByline.edit-active-field:empty::before {
+    content: 'Add a subtitle…';
+    color: #9ca3af;
 }
 
 /* Note block (blockquote inserted by editor) */

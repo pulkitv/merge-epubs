@@ -2356,6 +2356,10 @@ function enterEditMode() {
         }
     });
 
+    // Turn the whole reader card into a clean white editing workspace
+    const card = document.querySelector('.reader-card');
+    if (card) card.classList.add('reader-editing');
+
     if (elements.editToolbarRow) elements.editToolbarRow.style.display = 'flex';
     if (elements.editActionRow) elements.editActionRow.style.display = 'flex';
     if (elements.editToggleBtn) {
@@ -2413,6 +2417,9 @@ function exitEditMode(save) {
             el.classList.remove('edit-active-field');
         }
     });
+
+    const card = document.querySelector('.reader-card');
+    if (card) card.classList.remove('reader-editing');
 
     if (elements.editToolbarRow) { elements.editToolbarRow.style.display = 'none'; elements.editToolbarRow.style.top = ''; }
     if (elements.editActionRow) { elements.editActionRow.style.display = 'none'; elements.editActionRow.style.top = ''; }
