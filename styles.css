@@ -263,6 +263,13 @@ body[data-view="reader"] .top-nav {
     background: var(--reader-bg);
 }
 
+.reader-meta {
+    /* Share the same centered column as .reader-content so the title, byline,
+       and body all line up on the same left edge. */
+    max-width: 900px;
+    margin: 0 auto;
+}
+
 .reader-meta h2 {
     margin-bottom: 0.25rem;
     color: var(--reader-text);
