@@ -1572,6 +1572,59 @@ footer {
     color: var(--error-color);
 }
 
+.sidebar-state--prompt {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* ─── Screen-blocking busy overlay (delete, restore, etc.) ─────────────────── */
+
+.busy-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: wait;
+}
+
+.busy-overlay[hidden] {
+    display: none;
+}
+
+.busy-overlay-card {
+    background: var(--card-background);
+    color: var(--text-primary);
+    border-radius: 12px;
+    padding: 1.25rem 1.75rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.busy-spinner {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid rgba(79, 70, 229, 0.18);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: busy-spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes busy-spin {
+    to { transform: rotate(360deg); }
+}
+
+.busy-overlay-label {
+    color: var(--text-primary);
+}
+
 /* ─── Mobile sidebar ──────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {

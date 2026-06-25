@@ -114,7 +114,7 @@
             <section id="readerView" class="view" style="display: none;">
                 <div class="reader-layout">
 
-                <aside id="articleSidebar" class="article-sidebar" hidden>
+                <aside id="articleSidebar" class="article-sidebar">
                     <div class="sidebar-header">
                         <span class="sidebar-title">Library</span>
                         <button id="sidebarRefreshBtn" class="sidebar-icon-btn" type="button" title="Refresh">↻</button>
@@ -127,7 +127,7 @@
                 <div class="card reader-card">
                     <div class="reader-tools-row">
                         <div class="reader-tools">
-                            <button id="libraryToggleBtn" class="btn-secondary library-toggle-btn" type="button" style="display:none;" title="Toggle saved articles">📚</button>
+                            <button id="libraryToggleBtn" class="btn-secondary library-toggle-btn edit-active" type="button" title="Toggle saved articles">📚</button>
                         <button id="themeToggle" class="btn-secondary" type="button">Dark</button>
                             <div class="font-controls" role="group" aria-label="Font size">
                                 <button class="btn-secondary font-btn" data-font="16" type="button">A-</button>
@@ -304,6 +304,14 @@
                 </div><!-- /.reader-card-wrap -->
                 </div><!-- /.reader-layout -->
             </section>
+
+            <!-- Screen-blocking busy overlay (used by long-running operations like delete) -->
+            <div id="busyOverlay" class="busy-overlay" hidden role="status" aria-live="polite" aria-busy="true">
+                <div class="busy-overlay-card">
+                    <div class="busy-spinner" aria-hidden="true"></div>
+                    <span id="busyOverlayLabel" class="busy-overlay-label">Working…</span>
+                </div>
+            </div>
 
             <section id="convertView" class="view" style="display: none;">
                 <div class="card convert-card">

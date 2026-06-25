@@ -150,7 +150,11 @@ const elements = {
     versionHistoryBtn: document.getElementById('versionHistoryBtn'),
     versionHistoryModal: document.getElementById('versionHistoryModal'),
     versionModalClose: document.getElementById('versionModalClose'),
-    versionList: document.getElementById('versionList')
+    versionList: document.getElementById('versionList'),
+
+    // Screen-blocking busy overlay
+    busyOverlay: document.getElementById('busyOverlay'),
+    busyOverlayLabel: document.getElementById('busyOverlayLabel')
 };
 
 // Initialize
@@ -453,12 +457,18 @@ function updateAuthUI() {
         elements.googleSignIn.style.display = authState.isLoggedIn ? 'none' : 'block';
     }
 
-    if (elements.libraryToggleBtn) {
-        elements.libraryToggleBtn.style.display = authState.isLoggedIn ? 'inline-flex' : 'none';
-    }
-    // Hide sidebar on logout
-    if (!authState.isLoggedIn && elements.articleSidebar) {
-        elements.articleSidebar.hidden = true;
+    // Library sidebar is always shown — content adapts to auth state. The toggle
+    // button stays visible so users can collapse / expand the sidebar regardless.
+    if (authState.isLoggedIn) {
+        // Re-render with fresh state (loads articles if not already loaded)
+        loadLibrary();
+    } else {
+        // Reset library state and render the "sign in" prompt
+        libraryState.articles = [];
+        libraryState.loaded = false;
+        libraryState.loading = false;
+        libraryState.error = null;
+        renderSidebarSignInPrompt();
     }
 }
 
@@ -1312,6 +1322,21 @@ function formatFileSize(bytes) {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
+// Screen-blocking spinner for in-flight network actions where the user
+// shouldn't be able to click anything else (e.g. delete, restore).
+function showBusyOverlay(label) {
+    if (!elements.busyOverlay) return;
+    if (elements.busyOverlayLabel && label) {
+        elements.busyOverlayLabel.textContent = label;
+    }
+    elements.busyOverlay.hidden = false;
+}
+
+function hideBusyOverlay() {
+    if (!elements.busyOverlay) return;
+    elements.busyOverlay.hidden = true;
+}
+
 // ─── EPUB Reader ─────────────────────────────────────────────────────────────
 
 async function parseAndLoadEpub(file) {
@@ -1698,7 +1723,8 @@ function openSidebar() {
     if (!elements.articleSidebar) return;
     elements.articleSidebar.hidden = false;
     if (elements.libraryToggleBtn) elements.libraryToggleBtn.classList.add('edit-active');
-    if (!libraryState.loaded && !libraryState.loading) loadLibrary();
+    // Lazy-load library on open if signed in and not already loaded
+    if (authState.isLoggedIn && !libraryState.loaded && !libraryState.loading) loadLibrary();
 }
 
 function closeSidebar() {
@@ -1717,7 +1743,14 @@ function toggleSidebar() {
 }
 
 async function loadLibrary() {
-    if (!authState.isLoggedIn || !authState.idToken) return;
+    if (!authState.isLoggedIn || !authState.idToken) {
+        renderSidebarSignInPrompt();
+        return;
+    }
+    // Idempotency: don't refetch if already loaded or in-flight. The Refresh
+    // button explicitly resets libraryState.loaded = false before calling, so
+    // it still triggers a fresh fetch.
+    if (libraryState.loaded || libraryState.loading) return;
 
     libraryState.loading = true;
     libraryState.error = null;
@@ -1893,6 +1926,14 @@ function renderSidebarState(message, isError) {
     elements.sidebarList.innerHTML = `<div class="sidebar-state${isError ? ' sidebar-state--error' : ''}">${escapeHtml(message)}</div>`;
 }
 
+function renderSidebarSignInPrompt() {
+    if (!elements.sidebarList) return;
+    elements.sidebarList.innerHTML =
+        '<div class="sidebar-state sidebar-state--prompt">'
+        + 'Please sign in with Google to see your saved articles.'
+        + '</div>';
+}
+
 function renderSidebarArticles(articles) {
     if (!elements.sidebarList) return;
     if (!articles.length) {
@@ -1946,6 +1987,7 @@ async function deleteArticleFromLibrary(article, index) {
     if (!article?.id) return;
     if (!confirm(`Delete "${article.title || 'Untitled'}"? This cannot be undone.`)) return;
 
+    showBusyOverlay('Deleting…');
     try {
         const resp = await fetch('/api/saved-delete?' + new URLSearchParams({ article_id: article.id }), {
             method: 'DELETE',
@@ -1960,6 +2002,8 @@ async function deleteArticleFromLibrary(article, index) {
         setReaderStatus('Article deleted', 'success');
     } catch (err) {
         setReaderStatus('Failed to delete: ' + err.message, 'error');
+    } finally {
+        hideBusyOverlay();
     }
 }
 
