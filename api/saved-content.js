@@ -31,7 +31,12 @@ export default async function handler(req, res) {
         res.status(400).json({ error: 'Invalid content path' });
         return;
     }
-    if (!contentPath.startsWith(googleUid + '/')) {
+    // Two valid path layouts are owned by this user:
+    //   1. Legacy: `{googleUid}/{sha256(url)}.html`
+    //   2. New versioning layout: `articles/{googleUid}/{article_id}/{latest|v1|v2|...}`
+    const ownsLegacy = contentPath.startsWith(googleUid + '/');
+    const ownsVersioned = contentPath.startsWith('articles/' + googleUid + '/');
+    if (!ownsLegacy && !ownsVersioned) {
         res.status(403).json({ error: 'Access denied' });
         return;
     }
