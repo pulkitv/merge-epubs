@@ -142,6 +142,10 @@ export default async function handler(req, res) {
             id: articleId,
             google_uid: googleUid,
             google_email: googleEmail,
+            // local_id is NOT NULL (extension's IndexedDB id). Web-app drafts have no
+            // IndexedDB origin, so use a negative sentinel that can never collide with
+            // an extension-assigned positive id. Clamp to 32-bit int range for int4.
+            local_id: -(now % 2147483647),
             title,
             url,
             site_name: 'Web App',
