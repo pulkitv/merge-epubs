@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — ReadEasy</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --text: #111827;
+            --muted: #6b7280;
+            --bg: #f9fafb;
+            --card: #ffffff;
+            --border: #e5e7eb;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.65;
+            margin: 0;
+            padding: 2rem 1rem 4rem;
+        }
+        .wrap {
+            max-width: 760px;
+            margin: 0 auto;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem;
+        }
+        h1 { font-size: 1.9rem; margin: 0 0 0.25rem; }
+        h2 { font-size: 1.2rem; margin: 2rem 0 0.5rem; }
+        .updated { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        a { color: var(--primary); }
+        ul { padding-left: 1.25rem; }
+        li { margin-bottom: 0.35rem; }
+        .back { display: inline-block; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        code { background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <a class="back" href="/">&larr; Back to ReadEasy</a>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: 27 June 2026</p>
+
+        <p>
+            ReadEasy ("we", "our", or "the app") is a web application for combining EPUB
+            files and for reading, editing, and saving articles. This policy explains what
+            information the app handles, why, and your choices. It applies to
+            <a href="https://merge-epubs.vercel.app/">https://merge-epubs.vercel.app/</a>
+            and the companion ReadEasy browser extension.
+        </p>
+
+        <h2>Information we collect</h2>
+        <ul>
+            <li>
+                <strong>Google account profile.</strong> When you choose to sign in with
+                Google, we receive your name, email address, profile picture, and your
+                Google account identifier (the OpenID <code>sub</code>). We use Google
+                Identity Services and request only basic profile and email scopes.
+            </li>
+            <li>
+                <strong>Saved articles.</strong> If you save an article, the article's
+                title, source URL, site name, timestamps, and the article's HTML content
+                (including any edits you make) are stored so you can access them later
+                across devices.
+            </li>
+            <li>
+                <strong>EPUB files you upload for merging.</strong> Files you submit to the
+                Combine EPUBs feature are processed to produce the combined output.
+            </li>
+        </ul>
+
+        <h2>How we use your information</h2>
+        <ul>
+            <li>To sign you in and display your account name and avatar.</li>
+            <li>To store and retrieve the articles you choose to save, scoped privately to your Google account.</li>
+            <li>To combine the EPUB files you submit and return the merged file to you.</li>
+        </ul>
+        <p>
+            We do not sell your information, use it for advertising, or share it with third
+            parties for their own purposes.
+        </p>
+
+        <h2>Where your data is stored</h2>
+        <ul>
+            <li>
+                <strong>Saved articles</strong> are stored in our Supabase project (database
+                and file storage), partitioned by your Google account identifier so that only
+                you can access them.
+            </li>
+            <li>
+                <strong>EPUB merging</strong> is performed by our processing service. Uploaded
+                files are processed in memory to generate the combined EPUB and are not retained
+                on the server after the response is returned.
+            </li>
+            <li>
+                <strong>Your sign-in session</strong> (your Google ID token and basic profile)
+                is kept in your browser's local storage so you stay signed in. You can clear it
+                at any time by signing out.
+            </li>
+        </ul>
+
+        <h2>Data retention and deletion</h2>
+        <ul>
+            <li>Saved articles remain until you delete them. You can delete any saved article from the Library panel at any time, which removes both its database record and stored content.</li>
+            <li>Signing out clears your session from your browser.</li>
+            <li>
+                To request deletion of all data associated with your account, contact us at the
+                email below and we will remove your stored articles and account records.
+            </li>
+        </ul>
+
+        <h2>Third-party services</h2>
+        <p>The app relies on the following providers to function. Each has its own privacy policy:</p>
+        <ul>
+            <li><strong>Google</strong> (Sign-In / OAuth) — <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a></li>
+            <li><strong>Supabase</strong> (database &amp; storage) — <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a></li>
+            <li><strong>Vercel</strong> (web hosting) — <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener">vercel.com/legal/privacy-policy</a></li>
+        </ul>
+        <p>
+            We use Google user data only to provide the features described above and adhere to
+            the Google API Services User Data Policy, including the Limited Use requirements.
+        </p>
+
+        <h2>Children's privacy</h2>
+        <p>The app is not directed to children under 13 and we do not knowingly collect data from them.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>We may update this policy from time to time. Material changes will be reflected by the "Last updated" date above.</p>
+
+        <h2>Contact</h2>
+        <p>
+            Questions or data requests: <a href="mailto:vashishta.pulkit@gmail.com">vashishta.pulkit@gmail.com</a>
+        </p>
+    </div>
+</body>
+</html>

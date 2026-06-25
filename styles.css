@@ -750,6 +750,19 @@ footer {
     margin-top: auto;
 }
 
+footer .footer-links {
+    margin: 0.35rem 0 0;
+}
+
+footer .footer-links a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+footer .footer-links a:hover {
+    text-decoration: underline;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
     :root {
