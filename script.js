@@ -145,6 +145,7 @@ const elements = {
     sidebarList: document.getElementById('sidebarList'),
     sidebarRefreshBtn: document.getElementById('sidebarRefreshBtn'),
     sidebarCloseBtn: document.getElementById('sidebarCloseBtn'),
+    sidebarNewBtn: document.getElementById('sidebarNewBtn'),
 
     // Version history
     versionHistoryBtn: document.getElementById('versionHistoryBtn'),
@@ -469,6 +470,11 @@ function updateAuthUI() {
         libraryState.loading = false;
         libraryState.error = null;
         renderSidebarSignInPrompt();
+    }
+
+    // "+ New" only makes sense when signed in (creates a row scoped to google_uid)
+    if (elements.sidebarNewBtn) {
+        elements.sidebarNewBtn.style.display = authState.isLoggedIn ? '' : 'none';
     }
 }
 
@@ -1967,6 +1973,9 @@ function setupLibraryEventListeners() {
             loadLibrary();
         });
     }
+    if (elements.sidebarNewBtn) {
+        elements.sidebarNewBtn.addEventListener('click', createNewArticle);
+    }
     if (elements.sidebarList) {
         elements.sidebarList.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-action]');
@@ -2004,6 +2013,50 @@ async function deleteArticleFromLibrary(article, index) {
         setReaderStatus('Failed to delete: ' + err.message, 'error');
     } finally {
         hideBusyOverlay();
+    }
+}
+
+async function createNewArticle() {
+    if (!authState.isLoggedIn || !authState.idToken) return;
+
+    showBusyOverlay('Creating…');
+    try {
+        const resp = await fetch('/api/saved-create', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + authState.idToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ title: 'Untitled' })
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to create (' + resp.status + ')');
+        }
+        const article = await resp.json();
+        // Optimistic prepend so the sidebar reflects the new draft immediately —
+        // no need to wait for a full refetch.
+        libraryState.articles.unshift(article);
+        renderSidebarArticles(libraryState.articles);
+        hideBusyOverlay();
+
+        // Open in the reader, then drop straight into edit mode so the user can
+        // start typing without an extra click.
+        await openArticleFromLibrary(article);
+        if (!editorState.active) enterEditMode();
+        // Park the cursor inside the empty paragraph
+        if (elements.articleRoot) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            const range = document.createRange();
+            range.selectNodeContents(elements.articleRoot);
+            range.collapse(true);
+            sel.addRange(range);
+        }
+        setReaderStatus('Empty draft created — start writing.', 'success');
+    } catch (err) {
+        hideBusyOverlay();
+        setReaderStatus('Failed to create: ' + err.message, 'error');
     }
 }
 

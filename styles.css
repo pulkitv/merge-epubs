@@ -1491,6 +1491,19 @@ footer {
     color: var(--text-primary);
 }
 
+.sidebar-new-btn {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    padding: 0.2rem 0.5rem;
+    /* sidebar-title has flex:1 and already absorbs the slack — no margin needed */
+}
+
+.sidebar-new-btn:hover {
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--primary-hover);
+}
+
 .sidebar-list {
     overflow-y: auto;
     flex: 1;
