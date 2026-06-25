@@ -321,15 +321,46 @@ function loadAuthState() {
         const stored = localStorage.getItem('readeasy-auth');
         if (stored) {
             const parsed = JSON.parse(stored);
-            authState.isLoggedIn = Boolean(parsed?.idToken);
-            authState.profile = parsed?.profile || null;
-            authState.idToken = parsed?.idToken || null;
+            // Google ID tokens expire after ~1 hour. A stored-but-expired token
+            // would leave the UI "logged in" while every API call 401s. Drop it
+            // on load so the UI starts in an honest state.
+            if (parsed?.idToken && !isTokenExpired(parsed.idToken)) {
+                authState.isLoggedIn = true;
+                authState.profile = parsed?.profile || null;
+                authState.idToken = parsed.idToken;
+            } else {
+                localStorage.removeItem('readeasy-auth');
+            }
         }
     } catch (error) {
         console.warn('Unable to load auth state', error);
     }
 
     updateAuthUI();
+}
+
+// Returns true if the JWT's `exp` claim is in the past (or unreadable). A 30s
+// skew guard avoids treating an about-to-expire token as still valid.
+function isTokenExpired(token) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (!payload.exp) return false; // no exp claim — let the server decide
+        return Date.now() >= (payload.exp * 1000) - 30000;
+    } catch (error) {
+        return true; // unparseable token is effectively useless
+    }
+}
+
+// Called when a server response says the session is dead. Reconciles the UI
+// (which may still show a profile) with reality and tells the user once.
+function handleExpiredSession() {
+    if (!authState.isLoggedIn) return;
+    clearAuthState();
+    updateAuthUI();
+    setReaderStatus('Your session expired. Please sign in again.', 'error');
+    if (window.location.hash === '#/convert') {
+        window.location.hash = '#/reader';
+    }
 }
 
 function saveAuthState() {
@@ -1780,6 +1811,7 @@ async function fetchSupabaseArticles() {
         headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
     if (!resp.ok) {
+        if (resp.status === 401) handleExpiredSession();
         const data = await resp.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to load articles (' + resp.status + ')');
     }
@@ -1791,6 +1823,7 @@ async function fetchSignedUrl(contentPath) {
         headers: { 'Authorization': 'Bearer ' + authState.idToken }
     });
     if (!resp.ok) {
+        if (resp.status === 401) handleExpiredSession();
         const data = await resp.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to get article URL (' + resp.status + ')');
     }
@@ -1887,6 +1920,7 @@ async function saveArticleVersion() {
             })
         });
         if (!resp.ok) {
+            if (resp.status === 401) handleExpiredSession();
             const err = await resp.json().catch(() => ({}));
             throw new Error(err.error || 'Save failed (' + resp.status + ')');
         }
@@ -2003,6 +2037,7 @@ async function deleteArticleFromLibrary(article, index) {
             headers: { 'Authorization': 'Bearer ' + authState.idToken }
         });
         if (!resp.ok) {
+            if (resp.status === 401) handleExpiredSession();
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'Failed to delete (' + resp.status + ')');
         }
@@ -2030,6 +2065,7 @@ async function createNewArticle() {
             body: JSON.stringify({ title: 'Untitled' })
         });
         if (!resp.ok) {
+            if (resp.status === 401) handleExpiredSession();
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'Failed to create (' + resp.status + ')');
         }
@@ -2075,6 +2111,7 @@ async function openVersionHistory() {
             headers: { 'Authorization': 'Bearer ' + authState.idToken }
         });
         if (!resp.ok) {
+            if (resp.status === 401) handleExpiredSession();
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'Failed to load versions (' + resp.status + ')');
         }
@@ -2137,6 +2174,7 @@ async function restoreVersion(versionId, versionNumber) {
             body: JSON.stringify({ article_id: a.articleId, version_id: versionId })
         });
         if (!resp.ok) {
+            if (resp.status === 401) handleExpiredSession();
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.error || 'Restore failed (' + resp.status + ')');
         }
