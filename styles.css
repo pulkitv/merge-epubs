@@ -1710,6 +1710,93 @@ footer .footer-links a:hover {
     color: var(--text-primary);
 }
 
+/* ─── Reader app-shell: fixed nav + sidebar, only the article scrolls ─────────
+   On desktop the reader view locks to the viewport so the top nav and the
+   library panel stay put while only the article column scrolls. Scoped to the
+   reader view via body[data-view] so Merge/Convert keep normal page scroll, and
+   gated to >640px so mobile keeps its stacked, document-scroll layout. */
+@media (min-width: 641px) {
+    body[data-view="reader"] {
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    body[data-view="reader"] .container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+
+    body[data-view="reader"] .top-nav {
+        position: static;
+        flex-shrink: 0;
+        margin-bottom: 0;
+    }
+
+    body[data-view="reader"] main {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* JS toggles #readerView via inline display:block; force flex so the layout
+       fills the available height. */
+    body[data-view="reader"] #readerView {
+        display: flex !important;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        padding: 1rem;
+        box-sizing: border-box;
+    }
+
+    body[data-view="reader"] .reader-layout {
+        flex: 1;
+        min-height: 0;
+        align-items: stretch;
+    }
+
+    /* Library panel: fixed height column, never scrolls with the article. Its
+       own list (.sidebar-list) scrolls internally when long. */
+    body[data-view="reader"] .article-sidebar {
+        position: static;
+        top: auto;
+        height: auto;
+        max-height: none;
+        align-self: stretch;
+    }
+
+    body[data-view="reader"] .reader-card-wrap {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    body[data-view="reader"] .reader-card {
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* The article is the single scroll container. */
+    body[data-view="reader"] .reader-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    /* Toolbars sit above the scroll area inside the card — keep them static so
+       they don't scroll and don't need viewport-relative sticky offsets. */
+    body[data-view="reader"] .reader-tools-row,
+    body[data-view="reader"] .edit-toolbar-row,
+    body[data-view="reader"] .edit-action-row {
+        position: static;
+        top: auto;
+    }
+}
+
 /* ─── Mobile sidebar ──────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {
